@@ -1,0 +1,6 @@
+@Nuleep.API_HostAddress = https://localhost:5135
+
+GET {{Nuleep.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
