@@ -12,7 +12,7 @@ namespace Nuleep.Business.Interface
         Task<dynamic> GetProfileByUsernameAsync(string username);
         Task<Profile> GetExistingProfileByUserAsync(string userId);
         Task<dynamic> CreateProfile(CreateProfileRequest profileRequest);
-        Task<dynamic> UpdateProfile(ProfileRequest profileRequest);
+        Task<dynamic> UpdateProfile(CreateProfileRequest profileRequest);
         Task<dynamic> DeleteProfile(int UserId);
 
     }

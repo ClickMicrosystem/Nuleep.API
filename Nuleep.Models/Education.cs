@@ -6,6 +6,7 @@ namespace Nuleep.Models
     {
         [JsonPropertyName("_id")]
         public int Id { get; set; }
+        public int ProfileId { get; set; }
         public string SchoolOrOrganization { get; set; }
         public string DegreeCertification { get; set; }
         public string FieldOfStudy { get; set; }

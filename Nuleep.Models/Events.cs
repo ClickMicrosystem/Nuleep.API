@@ -18,7 +18,7 @@ namespace Nuleep.Models
         public string? TeleconferenceLink { get; set; }
         public string? EventPhysicalAddress { get; set; }
         public string? Location { get; set; }
-        public string EventTags { get; set; } = "[]"; // JSON string representation
+        public List <string>? EventTags { get; set; } 
         public string? EventImgFileName { get; set; }
         public string? EventImgBlobName { get; set; }
         public string? EventImgFullUrl { get; set; }

@@ -23,7 +23,7 @@ namespace Nuleep.API.Controllers
         // @route     GET /api/organizations/
         // @access    Private
 
-        [HttpPost("listAllBlog")]
+        [HttpPost("GetEmployeeOrganization")]
         public async Task<IActionResult> GetEmployeeOrganization([FromQuery] int page = 0, [FromQuery] int limit = 10)
         {
             var orgnaizationData = await _organizationService.GetEmployeeOrganization(page, limit);

@@ -20,20 +20,20 @@ namespace Nuleep.Models
 
         public string Title { get; set; }
 
-        public Organization organization { get; set; }
+        public Organization Organization { get; set; }
 
         public string OrganizationRole { get; set; } = "unapproved";
 
         public bool OrganizationApproved { get; set; } = false;
 
+        public List<User>? savedCandidates { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
-        public User userRef { get; set; }
         public List<Education> Education { get; set; }
 
         public List<Award> Awards { get; set; }
 
-        public List<User> savedCandidateIds { get; set; } 
     }
     
 }

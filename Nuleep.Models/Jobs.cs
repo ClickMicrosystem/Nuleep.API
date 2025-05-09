@@ -11,11 +11,11 @@ namespace Nuleep.Models
         public int Id { get; set; }
         public string PositionTitle { get; set; } = string.Empty;
         public string? Experience { get; set; }
-        public string Location { get; set; } = string.Empty;
+        public required string Location { get; set; };
         public string? Description { get; set; }
         public string? Department { get; set; }
         public List<string> Requirements { get; set; } = new List<string>();
-        public List<string> SkillKeywords { get; set; } = new List<string>();
+        public required List<string> SkillKeywords { get; set; }
         public string? JobType { get; set; }
         public string? SalaryType { get; set; }
         public int? Salary { get; set; }
@@ -24,7 +24,7 @@ namespace Nuleep.Models
         public DateTime? PostingDate { get; set; }
         public DateTime? ClosingDate { get; set; }
 
-        public Application? Application { get; set; }
+        public List<Application>? Application { get; set; }
         public string? CompanyContact { get; set; }
         public string? CompanyEmail { get; set; }
 

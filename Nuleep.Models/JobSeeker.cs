@@ -35,31 +35,18 @@ namespace Nuleep.Models
         public List<Experience> Experience { get; set; } = new();
         public List<Reference> References { get; set; } = new();
 
-        public MyStory MyStory { get; set; }
+        public MyStory? MyStory { get; set; }
 
         public List<string> Skills { get; set; } = new();
         public List<ProfileImage> Interests { get; set; } = new();
         public List<ProfileImage> Resume { get; set; } = new();
         public List<string> Classes { get; set; } = new();
 
-        // Ref Job Ids of Jobs Table
         public List<int> SavedJobIds { get; set; } = new();
 
-        // Ref Job Ids of Jobs Table
-        public List<int> RecentlyViewedJobIds { get; set; } = new();
-    }
+        public List<Job> SaveddJobs { get; set; } = new();
+        public List<Job> RecentlyViewJobs { get; set; } = new();
 
-    public class Activity
-    {
-        public string Title { get; set; }
-        public ActivityImage Image { get; set; }
-        public List<string> Skills { get; set; }
-    }
-
-    public class ActivityImage
-    {
-        public string BlobName { get; set; }
-        public string FullUrl { get; set; }
     }
 
 }

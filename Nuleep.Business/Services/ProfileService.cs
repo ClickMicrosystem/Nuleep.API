@@ -29,7 +29,7 @@ namespace Nuleep.Business.Services
             return await _profileRepository.CreateProfile(profileRequest);
         }
 
-        public async Task<dynamic> UpdateProfile(ProfileRequest profileRequest)
+        public async Task<dynamic> UpdateProfile(CreateProfileRequest profileRequest)
         {
             return await _profileRepository.UpdateProfile(profileRequest);
         }

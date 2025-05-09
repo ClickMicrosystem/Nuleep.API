@@ -29,8 +29,8 @@ namespace Nuleep.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetMyProfile()
         {
-            var username = User.Identity?.Name;
-            username = "rultilogni@vusra.com";
+            var username = User.Claims.ToList()[1].Value;
+            //username = "rultilogni@vusra.com";
             if (string.IsNullOrEmpty(username))
                 return Unauthorized();
 
@@ -59,7 +59,7 @@ namespace Nuleep.API.Controllers
                 return NotFound(new { error = "Invalid role" });
             }
 
-            var createdProfileInfo = await _profileService.CreateProfile(profileRequest);
+            ResponeModel createdProfileInfo = await _profileService.CreateProfile(profileRequest);
             
             if (createdProfileInfo.code == 1)
             {
@@ -73,8 +73,10 @@ namespace Nuleep.API.Controllers
 
         [HttpPut]
         [Authorize]
-        public async Task<IActionResult> UpdateProfile([FromBody] ProfileRequest request)
+        public async Task<IActionResult> UpdateProfile([FromBody] CreateProfileRequest request)
         {
+            request.UserId = int.Parse(User.Claims.ToList()[0].Value);
+            request.Email = User.Claims.ToList()[1].Value;
 
             var updatedProfile = await _profileService.UpdateProfile(request);
 
@@ -121,6 +123,136 @@ namespace Nuleep.API.Controllers
 
             return Ok(new { success = true, data = new { } });
         }
+
+        //[HttpGet("profiles")]
+        //[Authorize]
+        //public async Task<IActionResult> getProfile()
+        //{
+        //    // Get user ID from JWT claims
+        //    var userIdClaim = int.Parse(User.Claims.ToList()[0].Value);
+
+        //    //if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
+        //    //    return Unauthorized(new { error = "Invalid user token." });
+
+        //    // Get profile by userRef
+        //    var profileQuery = "SELECT * FROM Profiles WHERE UserRefId = @UserId AND IsDelete = 0;";
+        //    var profile = await _db.QueryFirstOrDefaultAsync<ProfileDto>(profileQuery, new { UserId = userId });
+
+        //    if (profile == null)
+        //        return NotFound(new { error = "Profile not found" });
+
+        //    // Fetch related data
+        //    var userQuery = @"SELECT Id, Email, Name, Role, Subscription FROM Users WHERE Id = @UserId";
+        //    var userRef = await _db.QueryFirstOrDefaultAsync<UserDto>(userQuery, new { UserId = userId });
+
+        //    var orgQuery = @"SELECT Id, Name FROM Organizations WHERE Id = @OrgId";
+        //    var organization = await _db.QueryFirstOrDefaultAsync<OrganizationDto>(orgQuery, new { OrgId = profile.OrganizationId });
+
+        //    var savedJobsQuery = @"
+        //SELECT j.Id, j.Title, j.CompanyName 
+        //FROM SavedJobs sj
+        //JOIN Jobs j ON sj.JobId = j.Id
+        //WHERE sj.ProfileId = @ProfileId";
+        //    var savedJobs = (await _db.QueryAsync<JobDto>(savedJobsQuery, new { ProfileId = profile.Id })).ToList();
+
+        //    var recentJobsQuery = @"
+        //SELECT j.Id, j.Title, j.CompanyName 
+        //FROM RecentlyViewedJobs rv
+        //JOIN Jobs j ON rv.JobId = j.Id
+        //WHERE rv.ProfileId = @ProfileId";
+        //    var recentlyViewedJobs = (await _db.QueryAsync<JobDto>(recentJobsQuery, new { ProfileId = profile.Id })).ToList();
+
+        //    // Chatrooms with nested user profiles
+        //    var chatRoomsQuery = @"
+        //SELECT c.Id, c.RoomName, c.Image 
+        //FROM ProfileChatrooms pc
+        //JOIN Chatrooms c ON c.Id = pc.ChatroomId
+        //WHERE pc.ProfileId = @ProfileId";
+        //    var chatRooms = (await _db.QueryAsync<ChatRoomDto>(chatRoomsQuery, new { ProfileId = profile.Id })).ToList();
+
+        //    foreach (var chatRoom in chatRooms)
+        //    {
+        //        var usersInRoomQuery = @"
+        //    SELECT p.Id, p.FirstName, p.LastName
+        //    FROM ProfileChatrooms pc
+        //    JOIN Profiles p ON pc.ProfileId = p.Id
+        //    WHERE pc.ChatroomId = @RoomId";
+        //        chatRoom.Users = (await _db.QueryAsync<ChatUserDto>(usersInRoomQuery, new { RoomId = chatRoom.Id })).ToList();
+
+        //        foreach (var user in chatRoom.Users)
+        //        {
+        //            var imgQuery = "SELECT TOP 1 FullUrl FROM ProfileImages WHERE ProfileId = @ProfileId";
+        //            user.ProfileImg = await _db.QueryFirstOrDefaultAsync<string>(imgQuery, new { ProfileId = user.Id });
+        //        }
+        //    }
+
+        //    // Return structured response
+        //    var response = new
+        //    {
+        //        profile.Id,
+        //        profile.FirstName,
+        //        profile.LastName,
+        //        profile.Email,
+        //        profile.JobTitle,
+        //        profile.Phone,
+        //        profile.CreatedAt,
+        //        UserRef = userRef,
+        //        Organization = organization,
+        //        RecentlyViewedJobs = recentlyViewedJobs,
+        //        SavedJobs = savedJobs,
+        //        ChatRooms = chatRooms
+        //    };
+
+        //    return Ok(new { success = true, data = response });
+        //}
+
+
+        //[HttpPost("api/profiles")]
+        //public async Task<IActionResult> CreateProfile([FromBody] CreateProfileRequest request)
+        //{
+        //    using (var connection = new SqlConnection(_connectionString))
+        //    {
+        //        // Query user so that we can update the role
+        //        var user = await connection.QuerySingleOrDefaultAsync<User>("SELECT * FROM Users WHERE Id = @Id", new { Id = request.UserId });
+
+        //        // Find if profile already exists
+        //        var profile = await connection.QuerySingleOrDefaultAsync<Profile>("SELECT * FROM Profiles WHERE UserRef = @UserRef", new { UserRef = request.UserId });
+
+        //        if (profile != null) return BadRequest(new { error = "Profile already exists!" });
+
+        //        Profile schema;
+        //        if (request.Role == "jobSeeker")
+        //        {
+        //            schema = new JobSeekerProfile
+        //            {
+        //                UserRef = request.UserId,
+        //                Email = user.Email,
+        //                // Map other properties from request
+        //            };
+        //        }
+        //        else if (request.Role == "recruiter")
+        //        {
+        //            schema = new RecruiterProfile
+        //            {
+        //                UserRef = request.UserId,
+        //                Email = user.Email,
+        //                // Map other properties from request
+        //            };
+        //        }
+        //        else
+        //        {
+        //            return NotFound(new { error = "Invalid role" });
+        //        }
+
+        //        // Save profile
+        //        await connection.ExecuteAsync("INSERT INTO Profiles (UserRef, Email, ...) VALUES (@UserRef, @Email, ...)", schema);
+
+        //        user.Role = request.Role;
+        //        await connection.ExecuteAsync("UPDATE Users SET Role = @Role WHERE Id = @Id", new { Role = user.Role, Id = user.Id });
+
+        //        return Ok(new { success = true, data = schema });
+        //    }
+        //}
 
     }
 }

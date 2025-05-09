@@ -15,8 +15,13 @@ namespace Nuleep.Models
 
         [JsonPropertyName("name")]
         [Required, MaxLength(255)]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
+        public List<string>? Benefits { get; set; }
+
+        public List<string>? Perks { get; set; }
+
+        public bool SendOwnership { get; set; } = false;
         public string OrgCode { get; set; }
 
         public string About { get; set; }
@@ -45,41 +50,12 @@ namespace Nuleep.Models
 
         public bool Verified { get; set; } = false;
 
-        public bool SendOwnership { get; set; } = false;
 
         public string OrgImageFileName { get; set; }
 
         public string OrgImageBlobName { get; set; }
 
         public string OrgImageFullUrl { get; set; }
-
-        public List<OrganizationBenefit> Benefits { get; set; }
-
-        public List<OrganizationPerk> Perks { get; set; }
-    }
-
-    public class OrganizationBenefit
-    {
-        public int Id { get; set; }
-
-        [Required]
-        public string Benefit { get; set; }
-
-        public int OrganizationId { get; set; }
-
-        public Organization Organization { get; set; }
-    }
-
-    public class OrganizationPerk
-    {
-        public int Id { get; set; }
-
-        [Required]
-        public string Perk { get; set; }
-
-        public int OrganizationId { get; set; }
-
-        public Organization Organization { get; set; }
     }
 
 

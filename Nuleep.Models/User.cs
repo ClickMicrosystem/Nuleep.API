@@ -4,7 +4,7 @@ namespace Nuleep.Models
 {
     public class User
     {
-        public string Username { get; set; } // didnt had in UserSchema
+        public string? Username { get; set; } // didnt had in UserSchema
 
         [JsonPropertyName("_id")]
         public int Id { get; set; }

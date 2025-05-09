@@ -6,12 +6,14 @@ namespace Nuleep.Models
     {
         // Common Profile Fields
         public int UserId { get; set; }
-        public string Role { get; set; } // "jobSeeker" or "recruiter"
-        public string FirstName { get; set; }
-        public string LastName { get; set; }
-        public string Email { get; set; }
-        public string JobTitle { get; set; }
-        public string Phone { get; set; }
+        public string? Role { get; set; } // "jobSeeker" or "recruiter"
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public string? Email { get; set; }
+        public string? JobTitle { get; set; }
+        public string? Phone { get; set; }
+
+        public bool isDelete { get; set; } = false;
 
         // Shared
         public List<Chatroom>? ChatRooms { get; set; }

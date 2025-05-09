@@ -10,15 +10,15 @@ namespace Nuleep.Models
     public class ProfileImage
     {
         [JsonPropertyName("_id")]
-        public int Id { get; set; }
+        public int? Id { get; set; }
 
-        public int ProfileId { get; set; }
+        public int? ProfileId { get; set; }
 
-        public string FileName { get; set; }
+        public string? FileName { get; set; }
 
-        public string BlobName { get; set; }
+        public string? BlobName { get; set; }
 
-        public string FullUrl { get; set; }
+        public string? FullUrl { get; set; }
     }
 
 }

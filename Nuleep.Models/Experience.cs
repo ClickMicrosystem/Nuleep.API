@@ -1,7 +1,11 @@
-﻿namespace Nuleep.Models
+﻿using System.Text.Json.Serialization;
+
+namespace Nuleep.Models
 {
     public class Experience
     {
+        [JsonPropertyName("_id")]
+        public int Id { get; set; }
         public string Title { get; set; }
         public string Company { get; set; }
         public List<string> Description { get; set; }
