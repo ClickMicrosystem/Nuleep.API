@@ -24,7 +24,7 @@ namespace Nuleep.Models
         public string ZipPostal { get; set; }
         public string careerPath { get; set; }
 
-        public CareerJourney CareerJourney { get; set; }
+        public CareerJourney? CareerJourney { get; set; }
         public List<Award> Awards { get; set; } = new();
         public List<ProfileImage> ProjectImg { get; set; } = new();
 

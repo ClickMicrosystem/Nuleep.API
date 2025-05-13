@@ -18,6 +18,10 @@ namespace Nuleep.Business.Services
         {
             return await _jobRepository.CreateJob(userId, job);
         }
+        public async Task<dynamic> UpdateJob(int userId, Job job)
+        {
+            return await _jobRepository.UpdateJob(userId, job);
+        }
         public async Task<dynamic> GetJobById(int id)
         {
             return await _jobRepository.GetJobById(id);

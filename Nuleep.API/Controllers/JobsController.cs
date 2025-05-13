@@ -19,10 +19,12 @@ namespace Nuleep.API.Controllers
     public class JobsController : ControllerBase
     {
         private readonly IJobService _jobService;
+        private readonly IDbConnection _db;
 
-        public JobsController(IJobService jobService)
+        public JobsController(IJobService jobService, IConfiguration config)
         {
             _jobService = jobService;
+            _db = new SqlConnection(config.GetConnectionString("DefaultConnection"));
         }
 
         [HttpGet]
@@ -36,6 +38,86 @@ namespace Nuleep.API.Controllers
 
             return Ok(new { success = true, data = user });
         }
+
+        public async Task<IActionResult> UpdateJob(int userId, int jobId, Job updatedJob)
+        {
+            // Get recruiter profile by user ID
+            var recruiter = await _db.QueryFirstOrDefaultAsync<dynamic>(
+                "SELECT * FROM Profiles WHERE UserId = @UserId AND Type = 'recruiter'",
+                new { UserId = userId });
+
+            // Get job by ID
+            var existingJob = await _db.QueryFirstOrDefaultAsync<dynamic>(
+                "SELECT * FROM Jobs WHERE Id = @JobId",
+                new { JobId = jobId });
+
+            if (existingJob == null || recruiter == null)
+            {
+                return new NotFoundObjectResult(new { error = "Resource not found" });
+            }
+
+            // Ensure recruiter is authorized to edit this job
+            if ((int)existingJob.RecruiterProfileId != (int)recruiter.Id)
+            {
+                return new BadRequestObjectResult(new { error = "You are not authorized to edit this organization" });
+            }
+
+
+            var updateQuery = @"
+        UPDATE Jobs
+        SET 
+            Title = @Title,
+            Description = @Description,
+            Salary = @Salary,
+            Location = @Location,
+            Department = @Department,
+            JobType = @JobType,
+            SalaryType = @SalaryType,
+            Remote = @Remote,
+            RequisitionNumber = @RequisitionNumber,
+            PostingDate = @PostingDate,
+            ClosingDate = @ClosingDate,
+            CompanyContact = @CompanyContact,
+            CompanyEmail = @CompanyEmail,
+            Program = @Program,
+            Experience = @Experience,
+            ExperienceLevel = @ExperienceLevel
+        WHERE Id = @JobId";
+
+            await _db.ExecuteAsync(updateQuery, new
+            {
+                updatedJob.PositionTitle,
+                updatedJob.Description,
+                Salary = updatedJob.Salary,
+                updatedJob.Location,
+                updatedJob.Department,
+                updatedJob.JobType,
+                updatedJob.SalaryType,
+                updatedJob.Remote,
+                updatedJob.RequisitionNumber,
+                updatedJob.PostingDate,
+                updatedJob.ClosingDate,
+                updatedJob.CompanyContact,
+                updatedJob.CompanyEmail,
+                updatedJob.Program,
+                updatedJob.Experience,
+                updatedJob.ExperienceLevel,
+                JobId = jobId
+            });
+
+            return new OkObjectResult(new
+            {
+                success = true,
+                data = new
+                {
+                    jobId,
+                    updatedJob.PositionTitle,
+                    updatedJob.Description,
+                    Salary = updatedJob.Salary      
+                }
+            });
+        }
+
 
         [HttpGet("{id}")]
         public async Task<IActionResult> GetJob(int id)
@@ -64,6 +146,37 @@ namespace Nuleep.API.Controllers
                 data = allRecruiterJobs.Values
             });
         }
+
+        // @desc      Delete a job
+        // @route     DELETE /api/jobs/:jobID
+        // @access    Private
+        [HttpDelete("api/jobs/{jobId}")]
+        [Authorize]
+        public async Task<IActionResult> DeleteJob(int jobId)
+        {
+            var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
+
+            var recruiterSql = "SELECT * FROM Recruiters WHERE UserRef = @UserId";
+            var jobSql = "SELECT * FROM Jobs WHERE Id = @JobId";
+            var deleteJobSql = "DELETE FROM Jobs WHERE Id = @JobId";
+            var deleteApplicationsSql = "DELETE FROM Applications WHERE JobId = @JobId";
+
+
+            var recruiter = await _db.QueryFirstOrDefaultAsync<Recruiter>(recruiterSql, new { UserId = userId });
+            var job = await _db.QueryFirstOrDefaultAsync<Job>(jobSql, new { JobId = jobId });
+
+            if (recruiter == null || job == null)
+                return NotFound(new { error = "Resource not found" });
+
+            if (job.RecruiterId != recruiter.Id)
+                return BadRequest(new { error = "You are not authorized to edit this organization" });
+
+            await _db.ExecuteAsync(deleteJobSql, new { JobId = jobId });
+            await _db.ExecuteAsync(deleteApplicationsSql, new { JobId = jobId });
+
+            return Ok(new { success = true });
+        }
+
 
 
     }

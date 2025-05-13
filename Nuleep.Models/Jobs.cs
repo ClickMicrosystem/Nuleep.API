@@ -11,7 +11,7 @@ namespace Nuleep.Models
         public int Id { get; set; }
         public string PositionTitle { get; set; } = string.Empty;
         public string? Experience { get; set; }
-        public required string Location { get; set; };
+        public required string Location { get; set; }
         public string? Description { get; set; }
         public string? Department { get; set; }
         public List<string> Requirements { get; set; } = new List<string>();
@@ -30,6 +30,7 @@ namespace Nuleep.Models
 
         public Organization? Organization { get; set; }
         public Recruiter? Recruiter { get; set; }
+        public int? RecruiterId { get; set; }
         public string? Program { get; set; }
         public string? ExperienceLevel { get; set; }
         public string? NuleepID { get; set; }

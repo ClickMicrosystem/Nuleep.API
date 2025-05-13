@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using Nuleep.Business.Interface;
 using Nuleep.Models;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -26,15 +27,18 @@ namespace Nuleep.API.Controllers
             _profileService = profileService;
         }
 
+        // @desc      Get your own profile. This will check your token for the profile id
+        // @route     GET /api/profiles
+        // @access    Private
         [HttpGet]
         public async Task<IActionResult> GetMyProfile()
         {
-            var username = User.Claims.ToList()[1].Value;
-            //username = "rultilogni@vusra.com";
-            if (string.IsNullOrEmpty(username))
+            var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
+            if (string.IsNullOrEmpty(userId))
                 return Unauthorized();
 
-            var user = await _profileService.GetProfileByUsernameAsync(username);
+            var user = await _profileService.GetProfileByUsernameAsync(userId);
+
             if (user == null)
                 return NotFound();
 
@@ -48,60 +52,92 @@ namespace Nuleep.API.Controllers
 
         [HttpPost]
         [Authorize]
-        public async Task<IActionResult> CreateProfile([FromBody] CreateProfileRequest profileRequest)
+        public async Task<IActionResult> CreateProfile([FromBody] CreateOrUpdateProfileRequest profileRequest)
         {
 
             profileRequest.UserId = int.Parse(User.Claims.ToList()[0].Value);
-            profileRequest.Email = User.Claims.ToList()[1].Value;
+
+            Recruiter recruiter = new Recruiter();
+            JobSeeker jobSeeker = new JobSeeker();
+
 
             if (profileRequest.Role?.ToLower() != "jobseeker" && profileRequest.Role?.ToLower() != "recruiter")
             {
                 return NotFound(new { error = "Invalid role" });
             }
 
-            ResponeModel createdProfileInfo = await _profileService.CreateProfile(profileRequest);
-            
-            if (createdProfileInfo.code == 1)
+            if (profileRequest.Role?.ToLower() == "recruiter")
             {
-                return BadRequest(new { error = "Profile already exists!" });
+                recruiter = await _profileService.CreateRecruiterProfile(profileRequest);
+                return Ok(new { success = true, data = recruiter });
+
+            }
+            else
+            {
+                jobSeeker = await _profileService.CreateJobSeekerProfile(profileRequest);
+                return Ok(new { success = true, data = jobSeeker });
             }
 
+            //if (createdProfileInfo.code == 1)
+            //{
+            //    return BadRequest(new { error = "Profile already exists!" });
+            //}
 
 
-            return Ok(new { success = true, data = createdProfileInfo });
+
         }
 
         [HttpPut]
         [Authorize]
-        public async Task<IActionResult> UpdateProfile([FromBody] CreateProfileRequest request)
+        public async Task<IActionResult> UpdateProfile([FromBody] CreateOrUpdateProfileRequest request)
         {
             request.UserId = int.Parse(User.Claims.ToList()[0].Value);
-            request.Email = User.Claims.ToList()[1].Value;
 
-            var updatedProfile = await _profileService.UpdateProfile(request);
+            Recruiter recruiter = new Recruiter();
+            JobSeeker jobSeeker = new JobSeeker();
 
-            if (updatedProfile.code == 1)
-            {
-                return BadRequest(new { error = "Profile does not exist!" });
-            }
-            else if (updatedProfile.code == 2)
-            {
-                return Unauthorized(new { error = "You are not authorized to edit this profile!" });
-            }
-            else if (updatedProfile.code == 3)
+
+            if (request.Role?.ToLower() != "jobseeker" && request.Role?.ToLower() != "recruiter")
             {
                 return NotFound(new { error = "Invalid role" });
             }
-            else if (updatedProfile.code == 4)
+
+            if (request.Role?.ToLower() == "recruiter")
             {
-                return BadRequest(new { error = "Error fetching updated profile" });
+                recruiter = await _profileService.CreateRecruiterProfile(request);
+                return Ok(new { success = true, data = recruiter });
+
+            }
+            else
+            {
+                jobSeeker = await _profileService.CreateJobSeekerProfile(request);
+                return Ok(new { success = true, data = jobSeeker });
             }
 
-            return Ok(new
-            {
-                success = true,
-                data = updatedProfile
-            });
+            //var updatedProfile = await _profileService.UpdateProfile(request);
+
+            //if (updatedProfile.code == 1)
+            //{
+            //    return BadRequest(new { error = "Profile does not exist!" });
+            //}
+            //else if (updatedProfile.code == 2)
+            //{
+            //    return Unauthorized(new { error = "You are not authorized to edit this profile!" });
+            //}
+            //else if (updatedProfile.code == 3)
+            //{
+            //    return NotFound(new { error = "Invalid role" });
+            //}
+            //else if (updatedProfile.code == 4)
+            //{
+            //    return BadRequest(new { error = "Error fetching updated profile" });
+            //}
+
+            //return Ok(new
+            //{
+            //    success = true,
+            //    data = updatedProfile
+            //});
         }
 
         [HttpDelete("api/profiles")]

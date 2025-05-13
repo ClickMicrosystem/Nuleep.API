@@ -24,12 +24,27 @@ namespace Nuleep.Business.Services
             return await _profileRepository.GetExistingProfileByUserAsync(userId);
         }
 
-        public async Task<dynamic> CreateProfile(CreateProfileRequest profileRequest)
+        public async Task<JobSeeker> CreateJobSeekerProfile(CreateOrUpdateProfileRequest profileRequest)
         {
-            return await _profileRepository.CreateProfile(profileRequest);
+            return await _profileRepository.CreateJobSeekerProfile(profileRequest);
         }
 
-        public async Task<dynamic> UpdateProfile(CreateProfileRequest profileRequest)
+        public async Task<Recruiter> CreateRecruiterProfile(CreateOrUpdateProfileRequest profileRequest)
+        {
+            return await _profileRepository.CreateRecruiterProfile(profileRequest);
+        }
+
+        public async Task<JobSeeker> UpdateJobSeekerProfile(CreateOrUpdateProfileRequest profileRequest)
+        {
+            return await _profileRepository.UpdateJobSeekerProfile(profileRequest);
+        }
+
+        public async Task<Recruiter> UpdateRecruiterProfile(CreateOrUpdateProfileRequest profileRequest)
+        {
+            return await _profileRepository.UpdateRecruiterProfile(profileRequest);
+        }
+
+        public async Task<ProfileResponse> UpdateProfile(CreateOrUpdateProfileRequest profileRequest)
         {
             return await _profileRepository.UpdateProfile(profileRequest);
         }

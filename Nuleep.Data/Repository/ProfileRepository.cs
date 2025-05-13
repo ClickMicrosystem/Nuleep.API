@@ -18,55 +18,25 @@ namespace Nuleep.Data.Repository
             _db = new SqlConnection(config.GetConnectionString("DefaultConnection"));
         }
 
-        public async Task<dynamic> GetUserByUsernameAsync(string username)
+        public async Task<dynamic> GetUserByUsernameAsync(string userId)
         {
-            var user = await _db.QueryAsync<int>("Select Id from Users where Email = @Email", new { Email = username });
-            var id = user.ToList()[0];
-            Recruiter recruiter = new Recruiter();
-            try
+            Profile profile = new Profile();
+            var sql = "SELECT * FROM User WHERE Id = @UserRefId";
+            var user = await _db.QueryFirstOrDefaultAsync<User>(sql, new { UserRefId = userId });
+            var profileQuery = "SELECT Id FROM Profile WHERE Id = @UserRefId";
+            var profileId = await _db.QueryFirstOrDefaultAsync<int>(profileQuery, new { UserRefId = userId });
+            if(user == null)
             {
-
-                var query = @"SELECT * FROM Profile WHERE UserId = @UserId;
-                            SELECT Id, Email, Role FROM Users WHERE Id = @UserId;                            
-                            SELECT Id, Email, Name FROM Organizations WHERE Id = (SELECT OrganizationId FROM Profile WHERE UserId = @UserId);
-                            SELECT * FROM Subscriptions WHERE UserId = @UserId;
-                            SELECT * FROM Education WHERE ProfileId = (SELECT Id FROM Profile WHERE UserId = @UserId);
-                            SELECT * FROM Awards WHERE ProfileId = (SELECT Id FROM Profile WHERE UserId = @UserId);
-                            SELECT * FROM ProfileImages WHERE ProfileId = (SELECT Id FROM Profile WHERE UserId = @UserId);";
-
-                using var multi = await _db.QueryMultipleAsync(query, new { UserId = id });
-
-                var rec = await multi.ReadFirstOrDefaultAsync<Recruiter>();
-                var profile = await multi.ReadFirstOrDefaultAsync<Profile>();
-                var users = await multi.ReadFirstOrDefaultAsync<User>();
-                var organization = await multi.ReadFirstOrDefaultAsync<Organization>();
-                var subscription = await multi.ReadFirstOrDefaultAsync<Subscription>();
-                var education = (await multi.ReadAsync<Education>()).ToList();
-                var awards = (await multi.ReadAsync<Award>()).ToList();
-                //var profileImages = (await multi.ReadAsync<ProfileImage>()).ToList();
-
-                if (rec != null)
-                {
-                    rec.savedCandidateIds = [];
-                    rec.Education = education;
-                    rec.Awards = awards;
-                    rec.userRef = users;
-                    rec.userRef.subscription = subscription;
-                    rec.organization = organization;
-                }
-
-                recruiter = rec;
-
-
+                return profile;
             }
-            catch (SqlException ex)
+            if (user.Role == "jobseeker")
             {
-                Console.WriteLine($"SQL Error: {ex.Message}");
+                return await GetJobSeekerByProfileId(profileId);
             }
-
-            //var sql = "SELECT * FROM Users WHERE Email = @Email";
-            //return await _db.QueryFirstOrDefaultAsync<User>(sql, new { Email = username });
-            return recruiter;
+            else
+            {                
+                return await GetRecruiterByProfileId(profileId);
+            }
         }
         
         public async Task<Profile> GetExistingProfileByUserAsync(string userId)
@@ -75,7 +45,6 @@ namespace Nuleep.Data.Repository
             return await _db.QueryFirstOrDefaultAsync<Profile>(sql, new { UserRefId = userId });
         }
         
-
         private dynamic GetCreatedProfileData(string profileId)
         {
             var query = @"SELECT * FROM Profile WHERE UserId = @UserId;
@@ -106,407 +75,820 @@ namespace Nuleep.Data.Repository
             return createProfileRequest;
         }
 
-        public async Task<dynamic> CreateProfile(CreateProfileRequest profileRequest)
+        public async Task<JobSeeker> CreateJobSeekerProfile(CreateOrUpdateProfileRequest profileRequest)
         {
 
-            ResponeModel responeModel = new ResponeModel();
+            JobSeeker jobSeeker = new JobSeeker();
 
-            var sql = "SELECT Id FROM Profile WHERE UserId = @UserRefId";
-            var existingProfileId =  await _db.QueryFirstOrDefaultAsync<int>(sql, new { UserRefId = profileRequest.UserId });
+            var sql = "SELECT Id, FirstName, LastName, Email, FullName, JobTitle, Phone FROM Profile WHERE UserRef = @UserRefId";
+            var existingProfile = await _db.QueryFirstOrDefaultAsync<Profile>(sql, new { UserRefId = profileRequest.UserId });
 
-            if(profileRequest.Education.Count > 0)
+            string insertQuery = "";
+            int profileId = 0;
+            int JobSeekersId = 0;
+            int CareerJourneyId = 0;
+            int MyStoryId = 0;
+
+            if (existingProfile == null)
             {
-                foreach(var item in profileRequest.Education)
-                {
-                    if(item.Id == 0)
-                    {
-                        string educationInsertQuery = @"INSERT INTO Education (SchoolOrOrganization, DegreeCertification, FieldOfStudy, [From], [To], Present, ProfileId) VALUES (@SchoolOrOrganization, @DegreeCertification, @FieldOfStudy, @From, @To, @Present, @ProfileId);
+                insertQuery = @" INSERT INTO Profile (FirstName, LastName, Email, JobTitle, UserRef, Phone)
+                                    VALUES (@FirstName, @LastName, @Email, @JobTitle, @UserRef, @Phone);
                                     SELECT CAST(SCOPE_IDENTITY() as int);";
 
-                        var educationId = await _db.ExecuteScalarAsync<int>(educationInsertQuery, new
-                        {
-                            item.SchoolOrOrganization,
-                            item.DegreeCertification,
-                            item.FieldOfStudy,
-                            item.From,
-                            item.To,
-                            item.Present,
-                            ProfileId = existingProfileId
-                        });
-                    }
-                    else
-                    {
-                        string educationUpdateQuery = @" UPDATE Education
-                                                            SET
-                                                                SchoolOrOrganization = @SchoolOrOrganization,
-                                                                DegreeCertification = @DegreeCertification,
-                                                                FieldOfStudy = @FieldOfStudy,
-                                                                [From] = @From,
-                                                                [To] = @To,
-                                                                Present = @Present
-                                                            WHERE Id = @Id AND ProfileId = @ProfileId;";
-
-                        await _db.ExecuteAsync(educationUpdateQuery, new
-                        {
-                            item.SchoolOrOrganization,
-                            item.DegreeCertification,
-                            item.FieldOfStudy,
-                            item.From,
-                            item.To,
-                            item.Present,
-                            item.Id,
-                            ProfileId = existingProfileId
-                        });
-
-
-                    }
-                }
-            }
-
-            if (profileRequest.Awards.Count > 0)
-            {
-                foreach (var item in profileRequest.Awards)
-                {
-                    if (item.Id == 0)
-                    {
-                        string awardInsertQuery = @" INSERT INTO Awards (AwardName, CompanyName, [Date], Description, ProfileId)
-                                    VALUES (@AwardName, @CompanyName, @Date, @Description, @ProfileId);
-                                    SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                        var educationId = await _db.ExecuteScalarAsync<int>(awardInsertQuery, new
-                        {
-                            item.AwardName,
-                            item.CompanyName,
-                            item.Date,
-                            item.Description,
-                            ProfileId = existingProfileId
-                        });
-                    }
-                    else
-                    {
-                        string educationUpdateQuery = @" UPDATE Awards
-                                                            SET
-                                                                AwardName = @AwardName,
-                                                                CompanyName = @CompanyName,
-                                                                Date = @Date,
-                                                                Description = @Description
-                                                            WHERE Id = @Id AND ProfileId = @ProfileId;";
-
-                        await _db.ExecuteAsync(educationUpdateQuery, new
-                        {
-                            item.AwardName,
-                            item.CompanyName,
-                            item.Date,
-                            item.Description,
-                            item.Id,
-                            item.ProfileId
-                        });
-
-
-                    }
-                }
-            }            
-
-            if(existingProfileId > 0 && (profileRequest.Awards.Count > 0 || profileRequest.Awards.Count > 0))
-            {
-                responeModel.data = GetCreatedProfileData(profileRequest.UserId.ToString());
-                responeModel.code = 0;
-                return responeModel;
-            }
-
-            if (existingProfileId > 0)
-            {
-                responeModel.data = existingProfileId;
-                responeModel.code = 1;
-                return responeModel;
-            }
-
-            if (profileRequest.Role?.ToLower() == "recruiter")
-            {
-                string profileInsertQuery = @" INSERT INTO Profile (FirstName, LastName, Email, JobTitle, isDelete, UserId, Phone)
-                                    VALUES (@FirstName, @LastName, @Email, @JobTitle, @isDelete, @UserRef, @Phone);
-                                    SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                var profileId = await _db.ExecuteScalarAsync<int>(profileInsertQuery, new
+                profileId = await _db.ExecuteScalarAsync<int>(insertQuery, new
                 {
                     profileRequest.FirstName,
                     profileRequest.LastName,
                     profileRequest.Email,
                     profileRequest.JobTitle,
-                    profileRequest.isDelete,
                     UserRef = profileRequest.UserId,
                     profileRequest.Phone
                 });
 
-
-                string recruitInsertQuery = @" INSERT INTO Recruiters (About, Bio, StreetAddress, Title, OrganizationRole, OrganizationApproved)
-                                    VALUES (@About, @Bio, @StreetAddress, @Title, @OrganizationRole, @OrganizationApproved);
+                insertQuery = @"INSERT INTO JobSeekers (ProfileId, HeaderImageFileName, HeaderImageBlobName, HeaderImageFullUrl, Bio, CurrentCompany, Remote, WebsiteUrl, CareerPath, StreetAddress, CountryRegion, City, StateProvince, ZipPostal, Skills, classes) VALUES (@ProfileId, @HeaderImageFileName, @HeaderImageBlobName, @HeaderImageFullUrl, @Bio, CurrentCompany, @Remote, WebsiteUrl, @CareerPath, @StreetAddress, @CountryRegion, @City, @StateProvince, @ZipPostal, @Skills, @classes);
                                     SELECT CAST(SCOPE_IDENTITY() as int);";
 
-                var recruitId = await _db.ExecuteScalarAsync<int>(recruitInsertQuery, new
+                JobSeekersId = await _db.ExecuteScalarAsync<int>(insertQuery, new
                 {
-                    profileRequest.About,
+                    profileId,
+                    HeaderImageFileName = profileRequest.HeaderImage.FileName,
+                    HeaderImageBlobName = profileRequest.HeaderImage.BlobName,
+                    HeaderImageFullUrl = profileRequest.HeaderImage.FullUrl,
                     profileRequest.Bio,
+                    profileRequest.CurrentCompany,
+                    profileRequest.Remote,
+                    profileRequest.WebsiteUrl,
+                    profileRequest.CareerPath,
                     profileRequest.StreetAddress,
-                    profileRequest.Title,
-                    profileRequest.OrganizationRole,
-                    profileRequest.OrganizationApproved
+                    profileRequest.CountryRegion,
+                    profileRequest.City,
+                    profileRequest.StateProvince,
+                    profileRequest.ZipPostal,
+                    Skills = System.String.Join(", ", profileRequest.Skills),
+                    Classes = System.String.Join(", ", profileRequest.Classes)
+                });
+            }
+
+            if (profileRequest.Education?.Count() > 0)
+            {
+                foreach (Education educationItem in profileRequest.Education)
+                {
+                    string EducationInsertQuery = @"INSERT INTO Education (ProfileId, SchoolOrOrganization, DegreeCertification, FieldOfStudy, [From], [To], Present, Description)
+                                    VALUES (@ProfileId, @SchoolOrOrganization, @DegreeCertification, @FieldOfStudy, @From, @To, @Present, @Description);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                    var EducationId = await _db.ExecuteScalarAsync<int>(EducationInsertQuery, new
+                    {
+                        profileId,
+                        educationItem.SchoolOrOrganization,
+                        educationItem.DegreeCertification,
+                        educationItem.FieldOfStudy,
+                        educationItem.From,
+                        educationItem.To,
+                        educationItem.Present,
+                        educationItem.Description
+                    });
+                }
+            }
+
+            if (profileRequest.Awards?.Count() > 0)
+            {
+                foreach (Award award in profileRequest.Awards)
+                {
+                    string AwardsInsertQuery = @"INSERT INTO Awards (ProfileId, AwardName, CompanyName, [Date], [Description])
+                                    VALUES (@ProfileId, @AwardName, @CompanyName, @Date, @Description);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                    var AwardId = await _db.ExecuteScalarAsync<int>(AwardsInsertQuery, new
+                    {
+                        profileId,
+                        award.AwardName,
+                        award.CompanyName,
+                        award.Date,
+                        award.Description
+                    });
+                }
+            }
+
+            if (profileRequest.Experience?.Count() > 0)
+            {
+                foreach (Experience experience in profileRequest.Experience)
+                {
+                    string ExperienceInsertQuery = @"INSERT INTO Experience (ProfileId, Title, Company, [Location], [DescriptionC], FromDate, ToDate, [Current], Impact, [Description])
+                                    VALUES (@ProfileId, @Title, @Company, @Location, @DescriptionC, @FromDate, @ToDate, @Current, @Impact, @Description);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                    var AwardId = await _db.ExecuteScalarAsync<int>(ExperienceInsertQuery, new
+                    {
+                        profileId,
+                        experience.Title,
+                        experience.Company,
+                        experience.Location,
+                        experience.DescriptionC,
+                        experience.From,
+                        experience.To,
+                        experience.Current,
+                        Impact = System.String.Join(", ", experience.Impact),
+                        Description = System.String.Join(", ", experience.Description)
+                    });
+                }
+            }
+
+            if (profileRequest.References?.Count() > 0)
+            {
+                foreach (Reference reference in profileRequest.References)
+                {
+                    string ReferencesInsertQuery = @"INSERT INTO [References] (ProfileId, Name, Company, [Email], [Phone])
+                                    VALUES (@ProfileId, @Name, @Email, @Phone);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                    var ReferenceId = await _db.ExecuteScalarAsync<int>(ReferencesInsertQuery, new
+                    {
+                        profileId,
+                        reference.Name,
+                        reference.Company,
+                        reference.Email,
+                        reference.Phone
+                    });
+                }
+            }
+
+            if (profileRequest.CareerJourney != null)
+            {
+                string CareerJourneyInsertQuery = @"INSERT INTO CareerJourney (JobSeekerId, NextRole, Description, Experience, Training)
+                                    VALUES (@JobSeekerId, @NextRole, @Description, @Experience, @Training);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                CareerJourneyId = await _db.ExecuteScalarAsync<int>(CareerJourneyInsertQuery, new
+                {
+                    JobSeekersId,
+                    profileRequest.CareerJourney.NextRole,
+                    profileRequest.CareerJourney.Description,
+                    Experience = System.String.Join(", ", profileRequest.CareerJourney.Experience),
+                    Training = System.String.Join(", ", profileRequest.CareerJourney.Training)
+                });
+            }
+
+            if (profileRequest.MyStory != null)
+            {
+                string MyStoryInsertQuery = @"INSERT INTO MyStory (ProfileId, Header, Summary)
+                                    VALUES (@ProfileId, @Header, @Summary);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                MyStoryId = await _db.ExecuteScalarAsync<int>(MyStoryInsertQuery, new
+                {
+                    profileId,
+                    profileRequest.MyStory.Header,
+                    profileRequest.MyStory.Summary
                 });
 
-            }
-            else
-            {
-                string profileInsertQuery = @" INSERT INTO Recruiters (FirstName, LastName, Email, JobTitle, UserRef, Phone, About, Bio, StreetAddress, Title, OrganizationId, OrganizationRole, OrganizationApproved)
-                                    VALUES (@FirstName, @LastName, @Email, @JobTitle, @UserRef, @Phone, @About, @Bio, @StreetAddress, @Title, @OrganizationId, @OrganizationRole, @OrganizationApproved);
+                foreach(Activity activity in profileRequest.MyStory.Activities)
+                {
+                    string ActivityInsertQuery = @"INSERT INTO MyStoryActivities (MyStoryId, Title, ImageBlobName, ImageFullUrl, Skills)
+                                    VALUES (@MyStoryId, @Title, @ImageBlobName, @ImageFullUrl, @Skills);
                                     SELECT CAST(SCOPE_IDENTITY() as int);";
 
-                var profileId = await _db.ExecuteScalarAsync<int>(profileInsertQuery, new
+                    var actvityId = await _db.ExecuteScalarAsync<int>(ActivityInsertQuery, new
+                    {
+                        MyStoryId,
+                        activity.Title,
+                        ImageBlobName = activity.Image.BlobName,
+                        ImageFullUrl = activity.Image.FullUrl,
+                        Skills = System.String.Join(", ", activity.Skills)
+                    });
+                }
+            }
+
+            //var query = @"SELECT Id, FirstName, LastName, Email, FullName, JobTitle, CreatedAt, UserRef, Phone FROM Profile WHERE Id = @ProfileId;
+            //                SELECT Id, Email, Role FROM Users WHERE Id = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);  
+            //                SELECT * FROM Recruiters WHERE ProfileId = @ProfileId;
+            //                SELECT Id, Email, Name FROM Organizations WHERE ProfileId = (SELECT Id FROM Profile WHERE UserRef = @ProfileId);
+            //                SELECT * FROM Subscriptions WHERE UserId = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
+            //                SELECT * FROM Education WHERE ProfileId = @ProfileId;
+            //                SELECT * FROM Awards WHERE ProfileId = @ProfileId;
+            //                SELECT * FROM ProfileImages WHERE ProfileId = @ProfileId;";
+
+            //using var multi = _db.QueryMultiple(query, new { ProfileId = profileId });
+
+            //var profile = multi.ReadFirstOrDefault<Profile>();
+            //var users = multi.ReadFirstOrDefault<User>();
+            //var jobSeeker1 = multi.ReadFirstOrDefault<JobSeeker>();
+            //var organization = multi.ReadFirstOrDefault<Organization>();
+            //var subscription = multi.ReadFirstOrDefault<Subscription>();
+            //List<Education> education = multi.Read<Education>().ToList();
+            //List<Award> awards = multi.Read<Award>().ToList();
+
+            //jobSeeker = jobSeeker1!;
+            //jobSeeker.User = users;
+            //jobSeeker.User.subscription = subscription;
+            //jobSeeker.Education = education;
+            //jobSeeker.Awards = awards;
+            //jobSeeker.ProfileImg = [];
+            //jobSeeker.RecentlyViewedCourses = [];
+            //jobSeeker.SavedCourses = [];
+            //jobSeeker.Experience = [];
+            //jobSeeker.References = [];
+            //jobSeeker.SaveddJobs = [];
+            //jobSeeker.RecentlyViewJobs = [];
+            //jobSeeker.Interests = [];
+            //jobSeeker.Resume = [];
+
+            return await GetJobSeekerByProfileId(profileId);
+        }
+
+        public async Task<Recruiter> CreateRecruiterProfile(CreateOrUpdateProfileRequest profileRequest)
+        { 
+            Recruiter recruiter = new Recruiter();
+            var sql = "SELECT Id, FirstName, LastName, Email, FullName, JobTitle, Phone FROM Profile WHERE UserRef = @UserRefId";
+            var existingProfile = await _db.QueryFirstOrDefaultAsync<Profile>(sql, new { UserRefId = profileRequest.UserId });
+
+            string insertQuery = "";
+            int profileId = 0;
+            int RecruiterId = 0;
+
+            if (existingProfile == null)
+            {
+                insertQuery = @" INSERT INTO Profile (FirstName, LastName, Email, JobTitle, UserRef, Phone)
+                                    VALUES (@FirstName, @LastName, @Email, @JobTitle, @UserRef, @Phone);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                profileId = await _db.ExecuteScalarAsync<int>(insertQuery, new
                 {
                     profileRequest.FirstName,
                     profileRequest.LastName,
                     profileRequest.Email,
                     profileRequest.JobTitle,
                     UserRef = profileRequest.UserId,
-                    profileRequest.Phone,
+                    profileRequest.Phone
+                });
+
+                insertQuery = @"INSERT INTO Recruiters (ProfileId, About, Bio, StreetAddress, Title, OrganizationRole, OrganizationApproved)
+                                    VALUES (@ProfileId, @About, @Bio, @StreetAddress, @Title, @OrganizationRole, @OrganizationApproved);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                RecruiterId = await _db.ExecuteScalarAsync<int>(insertQuery, new
+                {
+                    profileId,
                     profileRequest.About,
                     profileRequest.Bio,
                     profileRequest.StreetAddress,
                     profileRequest.Title,
-                    profileRequest.OrganizationId,
                     profileRequest.OrganizationRole,
                     profileRequest.OrganizationApproved
-                });
+                });                
             }
 
-
-            // Update User role
-            await _db.ExecuteAsync("UPDATE Users SET Role = @Role WHERE Id = @Id", new
+            if (profileRequest.Education?.Count() > 0)
             {
-                Role = profileRequest.Role.ToLower(),
-                Id = profileRequest.UserId
+                foreach (Education educationItem in profileRequest.Education)
+                {
+                    string EducationInsertQuery = @"INSERT INTO Education (ProfileId, SchoolOrOrganization, DegreeCertification, FieldOfStudy, [From], [To], Present, Description)
+                                    VALUES (@ProfileId, @SchoolOrOrganization, @DegreeCertification, @FieldOfStudy, @From, @To, @Present, @Description);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                    var EducationId = await _db.ExecuteScalarAsync<int>(EducationInsertQuery, new
+                    {
+                        profileId,
+                        educationItem.SchoolOrOrganization,
+                        educationItem.DegreeCertification,
+                        educationItem.FieldOfStudy,
+                        educationItem.From,
+                        educationItem.To,
+                        educationItem.Present,
+                        educationItem.Description
+                    });
+                }
+            }
+
+            if (profileRequest.Awards?.Count() > 0)
+            {
+                foreach (Award award in profileRequest.Awards)
+                {
+                    string AwardsInsertQuery = @"INSERT INTO Awards (ProfileId, AwardName, CompanyName, [Date], [Description])
+                                    VALUES (@ProfileId, @AwardName, @CompanyName, @Date, @Description);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+                    var AwardId = await _db.ExecuteScalarAsync<int>(AwardsInsertQuery, new
+                    {
+                        profileId,
+                        award.AwardName,
+                        award.CompanyName,
+                        award.Date,
+                        award.Description
+                    });
+                }
+            }
+
+            //var query = @"SELECT Id, FirstName, LastName, Email, FullName, JobTitle, CreatedAt, UserRef, Phone FROM Profile WHERE Id = @ProfileId;
+            //                SELECT Id, Email, Role FROM Users WHERE Id = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);  
+            //                SELECT * FROM Recruiters WHERE ProfileId = @ProfileId;
+            //                SELECT Id, Email, Name FROM Organizations WHERE ProfileId = (SELECT Id FROM Profile WHERE UserRef = @ProfileId);
+            //                SELECT * FROM Subscriptions WHERE UserId = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
+            //                SELECT * FROM Education WHERE ProfileId = @ProfileId;
+            //                SELECT * FROM Awards WHERE ProfileId = @ProfileId;
+            //                SELECT * FROM ProfileImages WHERE ProfileId = @ProfileId;";
+
+            //using var multi = _db.QueryMultiple(query, new { ProfileId = profileId });
+
+            //var profile = multi.ReadFirstOrDefault<Profile>();
+            //var users = multi.ReadFirstOrDefault<User>();
+            //var rec = multi.ReadFirstOrDefault<Recruiter>();
+            //var organization = multi.ReadFirstOrDefault<Organization>();
+            //var subscription = multi.ReadFirstOrDefault<Subscription>();
+            //var education = multi.Read<Education>().ToList();
+            //var awards = multi.Read<Award>().ToList();
+
+            //recruiter = rec!;
+            //recruiter.User = users;
+            //recruiter.User.subscription = subscription;
+            //recruiter.Education = education;
+            //recruiter.Awards = awards;
+            //recruiter.Organization = organization;
+            //recruiter.savedCandidates = [];
+
+            return await GetRecruiterByProfileId(profileId);
+        
+        }
+
+        public async Task<JobSeeker> UpdateJobSeekerProfile(CreateOrUpdateProfileRequest profileRequest)
+        {
+            var sql = "SELECT Id FROM Profile WHERE UserRef = @UserRefId";
+            var existingProfile = await _db.QueryFirstOrDefaultAsync<Profile>(sql, new { UserRefId = profileRequest.UserId });
+            if (existingProfile == null)
+                throw new Exception("Profile not found");
+
+            int profileId = existingProfile.Id;
+
+            string updateProfileSql = @"UPDATE Profile SET FirstName = @FirstName, LastName = @LastName, Email = @Email, JobTitle = @JobTitle, Phone = @Phone 
+                                WHERE Id = @ProfileId";
+            await _db.ExecuteAsync(updateProfileSql, new
+            {
+                profileRequest.FirstName,
+                profileRequest.LastName,
+                profileRequest.Email,
+                profileRequest.JobTitle,
+                profileRequest.Phone,
+                ProfileId = profileId
             });
 
-            responeModel.role = profileRequest.Role.ToLower();
-            responeModel.data = 3;
-            responeModel.code = 0;
-            return responeModel;
+            string updateJobSeekerSql = @"UPDATE JobSeekers SET HeaderImageFileName = @HeaderImageFileName, HeaderImageBlobName = @HeaderImageBlobName, 
+                                  HeaderImageFullUrl = @HeaderImageFullUrl, Bio = @Bio, CurrentCompany = @CurrentCompany, Remote = @Remote, 
+                                  WebsiteUrl = @WebsiteUrl, CareerPath = @CareerPath, StreetAddress = @StreetAddress, CountryRegion = @CountryRegion,
+                                  City = @City, StateProvince = @StateProvince, ZipPostal = @ZipPostal, Skills = @Skills, classes = @Classes
+                                  WHERE ProfileId = @ProfileId";
+            await _db.ExecuteAsync(updateJobSeekerSql, new
+            {
+                profileRequest.HeaderImage.FileName,
+                profileRequest.HeaderImage.BlobName,
+                profileRequest.HeaderImage.FullUrl,
+                profileRequest.Bio,
+                profileRequest.CurrentCompany,
+                profileRequest.Remote,
+                profileRequest.WebsiteUrl,
+                profileRequest.CareerPath,
+                profileRequest.StreetAddress,
+                profileRequest.CountryRegion,
+                profileRequest.City,
+                profileRequest.StateProvince,
+                profileRequest.ZipPostal,
+                Skills = string.Join(", ", profileRequest.Skills),
+                Classes = string.Join(", ", profileRequest.Classes),
+                ProfileId = profileId
+            });
+
+            // Optional: delete existing education, awards, experience, references, etc., and reinsert
+            await _db.ExecuteAsync("DELETE FROM Education WHERE ProfileId = @ProfileId", new { ProfileId = profileId });
+            foreach (var edu in profileRequest.Education ?? Enumerable.Empty<Education>())
+            {
+                string sqlInsertEdu = @"INSERT INTO Education (ProfileId, SchoolOrOrganization, DegreeCertification, FieldOfStudy, [From], [To], Present, Description)
+                                VALUES (@ProfileId, @SchoolOrOrganization, @DegreeCertification, @FieldOfStudy, @From, @To, @Present, @Description)";
+                await _db.ExecuteAsync(sqlInsertEdu, new
+                {
+                    ProfileId = profileId,
+                    edu.SchoolOrOrganization,
+                    edu.DegreeCertification,
+                    edu.FieldOfStudy,
+                    edu.From,
+                    edu.To,
+                    edu.Present,
+                    edu.Description
+                });
+            }
+
+            // Similarly update Awards, Experience, References, CareerJourney, MyStory...
+
+            // Return updated job seeker using the existing query
+            return await GetJobSeekerByProfileId(profileId);
         }
 
-        public async Task<dynamic> UpdateProfile(CreateProfileRequest request)
+        public async Task<Recruiter> UpdateRecruiterProfile(CreateOrUpdateProfileRequest profileRequest)
         {
-            ResponeModel responeModel = new ResponeModel();
+            var sql = "SELECT Id FROM Profile WHERE UserRef = @UserRefId";
+            var existingProfile = await _db.QueryFirstOrDefaultAsync<Profile>(sql, new { UserRefId = profileRequest.UserId });
+            if (existingProfile == null)
+                throw new Exception("Profile not found");
 
-            // 1. Find existing profile
-            var profileId = await _db.QueryFirstOrDefaultAsync<int>(
-                            "SELECT Id FROM Profile WHERE UserId = @UserId",
-                            new { UserId = request.UserId }
-                        );
+            int profileId = existingProfile.Id;
 
-            if (profileId < 1)
+            string updateProfileSql = @"UPDATE Profile SET FirstName = @FirstName, LastName = @LastName, Email = @Email, JobTitle = @JobTitle, Phone = @Phone 
+                                WHERE Id = @ProfileId";
+            await _db.ExecuteAsync(updateProfileSql, new
             {
-                responeModel.data = profileId;
-                responeModel.code = 1;
-                return responeModel;
-                //return (new { data = profileId, code = 1 });
-            }
+                profileRequest.FirstName,
+                profileRequest.LastName,
+                profileRequest.Email,
+                profileRequest.JobTitle,
+                profileRequest.Phone,
+                ProfileId = profileId
+            });
 
-            // 3. Validate Role if Provided
-            if(request.Role.ToLower() != "recruiter" && request.Role.ToLower() != "jobSeeker")
+            string updateRecruiterSql = @"UPDATE Recruiters SET About = @About, Bio = @Bio, StreetAddress = @StreetAddress, Title = @Title,
+                                  OrganizationRole = @OrganizationRole, OrganizationApproved = @OrganizationApproved
+                                  WHERE ProfileId = @ProfileId";
+            await _db.ExecuteAsync(updateRecruiterSql, new
             {
-                responeModel.data = profileId;
-                responeModel.code = 3;
-                return responeModel;
-                //return (new { data = profileId, code = 3 });
-            }
+                profileRequest.About,
+                profileRequest.Bio,
+                profileRequest.StreetAddress,
+                profileRequest.Title,
+                profileRequest.OrganizationRole,
+                profileRequest.OrganizationApproved,
+                ProfileId = profileId
+            });
 
-
-            if (request.Education.Count > 0)
+            await _db.ExecuteAsync("DELETE FROM Education WHERE ProfileId = @ProfileId", new { ProfileId = profileId });
+            foreach (var edu in profileRequest.Education ?? Enumerable.Empty<Education>())
             {
-                foreach (var item in request.Education)
+                string sqlInsertEdu = @"INSERT INTO Education (ProfileId, SchoolOrOrganization, DegreeCertification, FieldOfStudy, [From], [To], Present, Description)
+                                VALUES (@ProfileId, @SchoolOrOrganization, @DegreeCertification, @FieldOfStudy, @From, @To, @Present, @Description)";
+                await _db.ExecuteAsync(sqlInsertEdu, new
                 {
-                    if (item.Id == 0)
-                    {
-                        string educationInsertQuery = @" INSERT INTO Education (SchoolOrOrganization, DegreeCertification, FieldOfStudy, From, To, Present, ProfileId)
-                                    VALUES (@SchoolOrOrganization, @DegreeCertification, @FieldOfStudy, @From, @To, @Present, @ProfileId);
-                                    SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                        var educationId = await _db.ExecuteScalarAsync<int>(educationInsertQuery, new
-                        {
-                            item.SchoolOrOrganization,
-                            item.DegreeCertification,
-                            item.FieldOfStudy,
-                            item.From,
-                            item.To,
-                            item.Present,
-                            ProfileId = profileId
-                        });
-                    }
-                    else
-                    {
-                        string educationUpdateQuery = @" UPDATE Education
-                                                            SET
-                                                                SchoolOrOrganization = @SchoolOrOrganization,
-                                                                DegreeCertification = @DegreeCertification,
-                                                                FieldOfStudy = @FieldOfStudy,
-                                                                [From] = @From,
-                                                                [To] = @To,
-                                                                Present = @Present
-                                                            WHERE Id = @Id AND ProfileId = @ProfileId;";
-
-                        await _db.ExecuteAsync(educationUpdateQuery, new
-                        {
-                            item.SchoolOrOrganization,
-                            item.DegreeCertification,
-                            item.FieldOfStudy,
-                            item.From,
-                            item.To,
-                            item.Present,
-                            item.Id,
-                            ProfileId = profileId
-                        });
-
-
-                    }
-                }
-            }
-
-            if (request.Awards.Count > 0)
-            {
-                foreach (var item in request.Awards)
-                {
-                    if (item.Id == 0)
-                    {
-                        string awardInsertQuery = @" INSERT INTO Awards (AwardName, CompanyName, Date, Description, ProfileId)
-                                    VALUES (@SchoolOrOrganization, @CompanyName, @Date, @Description, @ProfileId);
-                                    SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                        var educationId = await _db.ExecuteScalarAsync<int>(awardInsertQuery, new
-                        {
-                            item.AwardName,
-                            item.CompanyName,
-                            item.Date,
-                            item.Description,
-                            item.ProfileId
-                        });
-                    }
-                    else
-                    {
-                        string educationUpdateQuery = @" UPDATE Awards
-                                                            SET
-                                                                AwardName = @AwardName,
-                                                                CompanyName = @CompanyName,
-                                                                Date = @Date,
-                                                                Description = @Description
-                                                            WHERE Id = @Id AND ProfileId = @ProfileId;";
-
-                        await _db.ExecuteAsync(educationUpdateQuery, new
-                        {
-                            item.AwardName,
-                            item.CompanyName,
-                            item.Date,
-                            item.Description,
-                            item.Id,
-                            item.ProfileId
-                        });
-
-
-                    }
-                }
-            }
-
-            if (profileId > 0)
-            {
-                responeModel.data = profileId;
-                responeModel.code = 1;
-                return responeModel;
-                //return new { data = profileId, code = 1 };
-            }
-
-            if (request.Role?.ToLower() == "recruiter")
-            {
-                string profileInsertQuery = @" INSERT INTO Profile (FirstName, LastName, Email, JobTitle, isDelete, UserId, Phone)
-                                    VALUES (@FirstName, @LastName, @Email, @JobTitle, @isDelete, @UserRef, @Phone);
-                                    SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                var pId = await _db.ExecuteScalarAsync<int>(profileInsertQuery, new
-                {
-                    request.FirstName,
-                    request.LastName,
-                    request.Email,
-                    request.JobTitle,
-                    request.isDelete,
-                    UserRef = request.UserId,
-                    request.Phone
-                });
-
-
-                string recruitInsertQuery = @" INSERT INTO Recruiters (About, Bio, StreetAddress, Title, OrganizationRole, OrganizationApproved)
-                                    VALUES (@About, @Bio, @StreetAddress, @Title, @OrganizationRole, @OrganizationApproved);
-                                    SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                var recruitId = await _db.ExecuteScalarAsync<int>(recruitInsertQuery, new
-                {
-                    request.About,
-                    request.Bio,
-                    request.StreetAddress,
-                    request.Title,
-                    request.OrganizationRole,
-                    request.OrganizationApproved
-                });
-
-            }
-            else
-            {
-                string profileInsertQuery = @" INSERT INTO Recruiters (FirstName, LastName, Email, JobTitle, UserRef, Phone, About, Bio, StreetAddress, Title, OrganizationId, OrganizationRole, OrganizationApproved)
-                                    VALUES (@FirstName, @LastName, @Email, @JobTitle, @UserRef, @Phone, @About, @Bio, @StreetAddress, @Title, @OrganizationId, @OrganizationRole, @OrganizationApproved);
-                                    SELECT CAST(SCOPE_IDENTITY() as int);";
-
-                var pId = await _db.ExecuteScalarAsync<int>(profileInsertQuery, new
-                {
-                    request.FirstName,
-                    request.LastName,
-                    request.Email,
-                    request.JobTitle,
-                    UserRef = request.UserId,
-                    request.Phone,
-                    request.About,
-                    request.Bio,
-                    request.StreetAddress,
-                    request.Title,
-                    request.OrganizationId,
-                    request.OrganizationRole,
-                    request.OrganizationApproved
+                    ProfileId = profileId,
+                    edu.SchoolOrOrganization,
+                    edu.DegreeCertification,
+                    edu.FieldOfStudy,
+                    edu.From,
+                    edu.To,
+                    edu.Present,
+                    edu.Description
                 });
             }
 
+            return await GetRecruiterByProfileId(profileId);
+        }
 
-            // 5. Get updated profile (including nested data if needed)
-            var updatedProfile = await _db.QueryFirstOrDefaultAsync<dynamic>(@"
-                                    SELECT 
-                                        p.*, 
-                                        u.Email, u.Role, u.Subscription, 
-                                        o.Name as OrganizationName
-                                    FROM Profile p
-                                    LEFT JOIN Users u ON p.UserId = u.Id
-                                    LEFT JOIN Organizations o ON p.OrganizationId = o.Id
-                                    WHERE p.UserId = @UserId
-                                ", new { UserId = request.UserId });
+        private async Task<JobSeeker> GetJobSeekerByProfileId(int profileId)
+        {
+            string sql = @"
+                        SELECT * FROM Profile WHERE Id = @ProfileId;
+                        SELECT * FROM JobSeekers WHERE ProfileId = @ProfileId;
+                        SELECT * FROM Users WHERE Id = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
+                        SELECT * FROM Subscriptions WHERE UserId = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
+                        SELECT * FROM Organization WHERE Id = (SELECT OrganizationId FROM Profile WHERE Id = @ProfileId);
+                        SELECT * FROM Education WHERE ProfileId = @ProfileId;
+                        SELECT * FROM Awards WHERE ProfileId = @ProfileId;
+                        SELECT * FROM Experience WHERE ProfileId = @ProfileId;
+                        SELECT * FROM References WHERE ProfileId = @ProfileId;
+                        SELECT * FROM CareerJourney WHERE ProfileId = @ProfileId;
+                        SELECT * FROM MyStory WHERE ProfileId = @ProfileId;
+                        SELECT * FROM ProfileImage WHERE ProfileId = @ProfileId;
+                        SELECT * FROM Interests WHERE ProfileId = @ProfileId;
+                        SELECT * FROM Resumes WHERE ProfileId = @ProfileId;
+                        SELECT * FROM ProjectImages WHERE ProfileId = @ProfileId;
+                        ";
 
-            if (updatedProfile == null)
+            using var multi = await _db.QueryMultipleAsync(sql, new { ProfileId = profileId });
+
+            var profile = await multi.ReadFirstOrDefaultAsync<Profile>();
+            var jobSeekerData = await multi.ReadFirstOrDefaultAsync<JobSeeker>();
+            var user = await multi.ReadFirstOrDefaultAsync<User>();
+            var subscription = await multi.ReadFirstOrDefaultAsync<Subscription>();
+            var organization = await multi.ReadFirstOrDefaultAsync<Organization>();
+            var education = (await multi.ReadAsync<Education>()).ToList();
+            var awards = (await multi.ReadAsync<Award>()).ToList();
+            var experience = (await multi.ReadAsync<Experience>()).ToList();
+            var references = (await multi.ReadAsync<Reference>()).ToList();
+            var careerJourney = (await multi.ReadAsync<CareerJourney>()).ToList();
+            var myStory = (await multi.ReadAsync<MyStory>()).ToList();
+            var profileImg = (await multi.ReadAsync<ProfileImage>()).ToList();
+            //var interests = (await multi.ReadAsync<>()).ToList();
+            //var resumes = (await multi.ReadAsync<Resum>()).ToList();
+            //var projectImages = (await multi.ReadAsync<Project>()).ToList();
+
+            return new JobSeeker
             {
-                responeModel.data = updatedProfile;
-                responeModel.code = 4;
-                return responeModel;
-                //return (new { data = updatedProfile, code = 4 });
-            }
+                Id = profile.Id,
+                User = new User
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    subscription = subscription
+                },
+                FirstName = profile.FirstName,
+                LastName = profile.LastName,
+                Email = profile.Email,
+                JobTitle = profile.JobTitle,
+                Phone = profile.Phone,
+                Bio = jobSeekerData.Bio,
+                CurrentCompany = jobSeekerData.CurrentCompany,
+                Remote = jobSeekerData.Remote,
+                WebsiteUrl = jobSeekerData.WebsiteUrl,
+                careerPath = jobSeekerData.careerPath,
+                StreetAddress = jobSeekerData.StreetAddress,
+                CountryRegion = jobSeekerData.CountryRegion,
+                City = jobSeekerData.City,
+                StateProvince = jobSeekerData.StateProvince,
+                ZipPostal = jobSeekerData.ZipPostal,
+                Skills = jobSeekerData.Skills,//.Split(',').Select(s => s.Trim()).ToList() ?? new List<string>(),
+                Classes = jobSeekerData.Classes,//?.Split(',').Select(s => s.Trim()).ToList() ?? new List<string>(),
+                Education = education,
+                Awards = awards,
+                Experience = experience,
+                References = references,
+                CareerJourney = null,
+                MyStory = null,
+                ProfileImg = profileImg,
+                Interests = [],
+                Resume = [],
+                ProjectImg = []
+            };
+        }
 
-            responeModel.data = updatedProfile;
-            responeModel.code = 0;
-            return responeModel;
+        private async Task<Recruiter> GetRecruiterByProfileId(int profileId)
+        {
+            string sql = @"
+                            SELECT * FROM Profile WHERE Id = @ProfileId;
+                            SELECT * FROM Recruiters WHERE ProfileId = @ProfileId;
+                            SELECT * FROM Users WHERE Id = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
+                            SELECT * FROM Subscriptions WHERE UserId = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
+                            SELECT * FROM Organization WHERE Id = (SELECT OrganizationId FROM Profile WHERE Id = @ProfileId);
+                            SELECT * FROM Education WHERE ProfileId = @ProfileId;
+                            SELECT * FROM Awards WHERE ProfileId = @ProfileId;
+                            SELECT * FROM ProfileImage WHERE ProfileId = @ProfileId;
+                            ";
+
+            using var multi = await _db.QueryMultipleAsync(sql, new { ProfileId = profileId });
+
+            var profile = await multi.ReadFirstOrDefaultAsync<Profile>();
+            var recruiterData = await multi.ReadFirstOrDefaultAsync<Recruiter>();
+            var user = await multi.ReadFirstOrDefaultAsync<User>();
+            var subscription = await multi.ReadFirstOrDefaultAsync<Subscription>();
+            var organization = await multi.ReadFirstOrDefaultAsync<Organization>();
+            var education = (await multi.ReadAsync<Education>()).ToList();
+            var awards = (await multi.ReadAsync<Award>()).ToList();
+            var profileImg = (await multi.ReadAsync<ProfileImage>()).ToList();
+
+            return new Recruiter
+            {
+                Id = profile.Id,
+                User = new User
+                {
+                    Id = user.Id,
+                    Username = user.Username,
+                    Email = user.Email,
+                    subscription = subscription
+                },
+                FirstName = profile.FirstName,
+                LastName = profile.LastName,
+                Email = profile.Email,
+                JobTitle = profile.JobTitle,
+                Phone = profile.Phone,
+                About = recruiterData.About,
+                Bio = recruiterData.Bio,
+                StreetAddress = recruiterData.StreetAddress,
+                Title = recruiterData.Title,
+                OrganizationRole = recruiterData.OrganizationRole,
+                OrganizationApproved = recruiterData.OrganizationApproved,
+                Organization = organization,
+                Education = education,
+                Awards = awards,
+                ProfileImg = profileImg
+            };
+        }
+
+        public async Task<ProfileResponse> UpdateProfile(CreateOrUpdateProfileRequest request)
+        {
+            ProfileResponse responeModel = new ProfileResponse();
+
+            await Task.Delay(100);
+
+            #region Reference Code 
+            //// 1. Find existing profile
+            //var profileId = await _db.QueryFirstOrDefaultAsync<int>(
+            //                "SELECT Id FROM Profile WHERE UserId = @UserId",
+            //                new { UserId = request.UserId }
+            //            );
+
+            //if (profileId < 1)
+            //{
+            //    responeModel.data = profileId;
+            //    responeModel.code = 1;
+            //    return responeModel;
+            //    //return (new { data = profileId, code = 1 });
+            //}
+
+            //// 3. Validate Role if Provided
+            //if(request.Role.ToLower() != "recruiter" && request.Role.ToLower() != "jobSeeker")
+            //{
+            //    responeModel.data = profileId;
+            //    responeModel.code = 3;
+            //    return responeModel;
+            //    //return (new { data = profileId, code = 3 });
+            //}
+
+
+            //if (request.Education.Count > 0)
+            //{
+            //    foreach (var item in request.Education)
+            //    {
+            //        if (item.Id == 0)
+            //        {
+            //            string educationInsertQuery = @" INSERT INTO Education (SchoolOrOrganization, DegreeCertification, FieldOfStudy, From, To, Present, ProfileId)
+            //                        VALUES (@SchoolOrOrganization, @DegreeCertification, @FieldOfStudy, @From, @To, @Present, @ProfileId);
+            //                        SELECT CAST(SCOPE_IDENTITY() as int);";
+
+            //            var educationId = await _db.ExecuteScalarAsync<int>(educationInsertQuery, new
+            //            {
+            //                item.SchoolOrOrganization,
+            //                item.DegreeCertification,
+            //                item.FieldOfStudy,
+            //                item.From,
+            //                item.To,
+            //                item.Present,
+            //                ProfileId = profileId
+            //            });
+            //        }
+            //        else
+            //        {
+            //            string educationUpdateQuery = @" UPDATE Education
+            //                                                SET
+            //                                                    SchoolOrOrganization = @SchoolOrOrganization,
+            //                                                    DegreeCertification = @DegreeCertification,
+            //                                                    FieldOfStudy = @FieldOfStudy,
+            //                                                    [From] = @From,
+            //                                                    [To] = @To,
+            //                                                    Present = @Present
+            //                                                WHERE Id = @Id AND ProfileId = @ProfileId;";
+
+            //            await _db.ExecuteAsync(educationUpdateQuery, new
+            //            {
+            //                item.SchoolOrOrganization,
+            //                item.DegreeCertification,
+            //                item.FieldOfStudy,
+            //                item.From,
+            //                item.To,
+            //                item.Present,
+            //                item.Id,
+            //                ProfileId = profileId
+            //            });
+
+
+            //        }
+            //    }
+            //}
+
+            //if (request.Awards.Count > 0)
+            //{
+            //    foreach (var item in request.Awards)
+            //    {
+            //        if (item.Id == 0)
+            //        {
+            //            string awardInsertQuery = @" INSERT INTO Awards (AwardName, CompanyName, Date, Description, ProfileId)
+            //                        VALUES (@SchoolOrOrganization, @CompanyName, @Date, @Description, @ProfileId);
+            //                        SELECT CAST(SCOPE_IDENTITY() as int);";
+
+            //            var educationId = await _db.ExecuteScalarAsync<int>(awardInsertQuery, new
+            //            {
+            //                item.AwardName,
+            //                item.CompanyName,
+            //                item.Date,
+            //                item.Description,
+            //                item.ProfileId
+            //            });
+            //        }
+            //        else
+            //        {
+            //            string educationUpdateQuery = @" UPDATE Awards
+            //                                                SET
+            //                                                    AwardName = @AwardName,
+            //                                                    CompanyName = @CompanyName,
+            //                                                    Date = @Date,
+            //                                                    Description = @Description
+            //                                                WHERE Id = @Id AND ProfileId = @ProfileId;";
+
+            //            await _db.ExecuteAsync(educationUpdateQuery, new
+            //            {
+            //                item.AwardName,
+            //                item.CompanyName,
+            //                item.Date,
+            //                item.Description,
+            //                item.Id,
+            //                item.ProfileId
+            //            });
+
+
+            //        }
+            //    }
+            //}
+
+            //if (profileId > 0)
+            //{
+            //    responeModel.data = profileId;
+            //    responeModel.code = 1;
+            //    return responeModel;
+            //    //return new { data = profileId, code = 1 };
+            //}
+
+            //if (request.Role?.ToLower() == "recruiter")
+            //{
+            //    string profileInsertQuery = @" INSERT INTO Profile (FirstName, LastName, Email, JobTitle, isDelete, UserId, Phone)
+            //                        VALUES (@FirstName, @LastName, @Email, @JobTitle, @isDelete, @UserRef, @Phone);
+            //                        SELECT CAST(SCOPE_IDENTITY() as int);";
+
+            //    var pId = await _db.ExecuteScalarAsync<int>(profileInsertQuery, new
+            //    {
+            //        request.FirstName,
+            //        request.LastName,
+            //        request.Email,
+            //        request.JobTitle,
+            //        request.isDelete,
+            //        UserRef = request.UserId,
+            //        request.Phone
+            //    });
+
+
+            //    string recruitInsertQuery = @" INSERT INTO Recruiters (About, Bio, StreetAddress, Title, OrganizationRole, OrganizationApproved)
+            //                        VALUES (@About, @Bio, @StreetAddress, @Title, @OrganizationRole, @OrganizationApproved);
+            //                        SELECT CAST(SCOPE_IDENTITY() as int);";
+
+            //    var recruitId = await _db.ExecuteScalarAsync<int>(recruitInsertQuery, new
+            //    {
+            //        request.About,
+            //        request.Bio,
+            //        request.StreetAddress,
+            //        request.Title,
+            //        request.OrganizationRole,
+            //        request.OrganizationApproved
+            //    });
+
+            //}
+            //else
+            //{
+            //    string profileInsertQuery = @" INSERT INTO Recruiters (FirstName, LastName, Email, JobTitle, UserRef, Phone, About, Bio, StreetAddress, Title, OrganizationId, OrganizationRole, OrganizationApproved)
+            //                        VALUES (@FirstName, @LastName, @Email, @JobTitle, @UserRef, @Phone, @About, @Bio, @StreetAddress, @Title, @OrganizationId, @OrganizationRole, @OrganizationApproved);
+            //                        SELECT CAST(SCOPE_IDENTITY() as int);";
+
+            //    var pId = await _db.ExecuteScalarAsync<int>(profileInsertQuery, new
+            //    {
+            //        request.FirstName,
+            //        request.LastName,
+            //        request.Email,
+            //        request.JobTitle,
+            //        UserRef = request.UserId,
+            //        request.Phone,
+            //        request.About,
+            //        request.Bio,
+            //        request.StreetAddress,
+            //        request.Title,
+            //        request.OrganizationId,
+            //        request.OrganizationRole,
+            //        request.OrganizationApproved
+            //    });
+            //}
+
+
+            //// 5. Get updated profile (including nested data if needed)
+            //var updatedProfile = await _db.QueryFirstOrDefaultAsync<dynamic>(@"
+            //                        SELECT 
+            //                            p.*, 
+            //                            u.Email, u.Role, u.Subscription, 
+            //                            o.Name as OrganizationName
+            //                        FROM Profile p
+            //                        LEFT JOIN Users u ON p.UserId = u.Id
+            //                        LEFT JOIN Organizations o ON p.OrganizationId = o.Id
+            //                        WHERE p.UserId = @UserId
+            //                    ", new { UserId = request.UserId });
+
+            //if (updatedProfile == null)
+            //{
+            //    responeModel.data = updatedProfile;
+            //    responeModel.code = 4;
+            //    return responeModel;
+            //    //return (new { data = updatedProfile, code = 4 });
+            //}
+
+            //responeModel.data = updatedProfile;
+            //responeModel.code = 0;
+            //return responeModel;
 
             //return (new { data = updatedProfile, code = 0 });
+
+            #endregion
+
+            return responeModel;
         }
-        
+
         public async Task<dynamic> DeleteProfile(int UserId)
         {
             var profile = await _db.QueryFirstOrDefaultAsync<Profile>(

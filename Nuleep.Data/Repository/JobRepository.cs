@@ -30,14 +30,7 @@ namespace Nuleep.Data.Repository
                 return new { data = recruiter, code = 1};                
             }
 
-            // Step 2: Generate unique nuleepID
             var nuleepId = $"nuleep-{Guid.NewGuid().ToString("N").Substring(0, 8)}";
-
-            // Step 3: Clean Salary (remove commas)
-            //var cleanedSalary = job.Salary.Replace(",", "");
-
-            // Step 4: Insert Job
-
 
             var jobInsertQuery = @"
                                     INSERT INTO Jobs (PositionTitle, Experience, Location, Description, Department, JobType, SalaryType, Salary, Remote,
@@ -77,7 +70,61 @@ namespace Nuleep.Data.Repository
                 }
             };            
         }
-    
+
+        public async Task<dynamic> UpdateJob(int userId, Job job)
+        {
+
+            var recruiter = await _db.QueryFirstOrDefaultAsync<dynamic>(
+                                    "SELECT * FROM Profiles WHERE UserId = @UserId AND Type = 'recruiter'",
+                                    new { UserId = userId });
+
+            if (recruiter != null)
+            {
+                return new { data = recruiter, code = 1 };
+            }
+
+            var nuleepId = $"nuleep-{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+
+            var jobInsertQuery = @"
+                                    INSERT INTO Jobs (PositionTitle, Experience, Location, Description, Department, JobType, SalaryType, Salary, Remote,
+                                                      RequisitionNumber, PostingDate, ClosingDate, CompanyContact, CompanyEmail, OrganizationId,
+                                                      RecruiterId, Program, ExperienceLevel, NuleepID)
+                                    VALUES (@PositionTitle, @Experience, @Location, @Description, @Department, @JobType, @SalaryType, @Salary, @Remote,
+                                            @RequisitionNumber, @PostingDate, @ClosingDate, @CompanyContact, @CompanyEmail, @OrganizationId,
+                                            @RecruiterId, @Program, @ExperienceLevel, @NuleepID);
+                                    SELECT CAST(SCOPE_IDENTITY() as int);";
+
+            var insertJobQuery = @"
+                                    INSERT INTO Jobs (NuleepID, Title, Description, Salary, OrganizationId, RecruiterProfileId, CreatedAt)
+                                    VALUES (@NuleepID, @Title, @Description, @Salary, @OrganizationId, @RecruiterProfileId, GETDATE());
+                                    SELECT CAST(SCOPE_IDENTITY() as int);
+                                ";
+
+            var jobId = await _db.ExecuteScalarAsync<int>(insertJobQuery, new
+            {
+                NuleepID = nuleepId,
+                job.PositionTitle,
+                job.Description,
+                Salary = job.Salary,
+                OrganizationId = recruiter.OrganizationId,
+                RecruiterProfileId = recruiter.Id
+            });
+
+            return new
+            {
+                data = new
+                {
+                    Id = jobId,
+                    NuleepID = nuleepId,
+                    job.PositionTitle,
+                    job.Description,
+                    Salary = job.Salary,
+                    OrganizationId = recruiter.OrganizationId,
+                    RecruiterProfileId = (int)recruiter.Id
+                }
+            };
+        }
+
 
         public async Task<dynamic> GetJobById(int id)
         {

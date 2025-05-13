@@ -30,9 +30,9 @@ namespace Nuleep.Models
 
         public DateTime CreatedAt { get; set; }
 
-        public List<Education> Education { get; set; }
+        public List<Education>? Education { get; set; }
 
-        public List<Award> Awards { get; set; }
+        public List<Award>? Awards { get; set; }
 
     }
     
