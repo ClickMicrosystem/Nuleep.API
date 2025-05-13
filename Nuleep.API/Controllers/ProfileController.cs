@@ -10,6 +10,9 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Nuleep.Business.Interface;
+using Nuleep.Business.Services;
+using Nuleep.Data.Interface;
+using Nuleep.Data.Repository;
 using Nuleep.Models;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -21,10 +24,14 @@ namespace Nuleep.API.Controllers
     public partial class ProfilesController : ControllerBase
     {
         private readonly IProfileService _profileService;
+        private readonly AzureFileService _fileService;
+        private readonly IProfileRepository _profileRepository;
 
-        public ProfilesController(IProfileService profileService)
+        public ProfilesController(IProfileService profileService, AzureFileService fileService, IProfileRepository profileRepository)
         {
             _profileService = profileService;
+            _fileService = fileService;
+            _profileRepository = profileRepository;
         }
 
         // @desc      Get your own profile. This will check your token for the profile id
@@ -160,135 +167,54 @@ namespace Nuleep.API.Controllers
             return Ok(new { success = true, data = new { } });
         }
 
-        //[HttpGet("profiles")]
-        //[Authorize]
-        //public async Task<IActionResult> getProfile()
-        //{
-        //    // Get user ID from JWT claims
-        //    var userIdClaim = int.Parse(User.Claims.ToList()[0].Value);
+        [HttpPost]
+        [Authorize]
+        public async Task<IActionResult> UploadResume([FromForm] IFormFile file)
+        {
+            var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
+            var jobSeeker = await _profileService.GetProfileByUsernameAsync(userId);
+            //var jobSeeker = await _profileRepository.GetJobSeekerByUserIdAsync(userId);
 
-        //    //if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out int userId))
-        //    //    return Unauthorized(new { error = "Invalid user token." });
+            if (jobSeeker == null)
+                return NotFound(new { error = "Profile not found" });
 
-        //    // Get profile by userRef
-        //    var profileQuery = "SELECT * FROM Profiles WHERE UserRefId = @UserId AND IsDelete = 0;";
-        //    var profile = await _db.QueryFirstOrDefaultAsync<ProfileDto>(profileQuery, new { UserId = userId });
+            var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".pages", ".txt" };
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
 
-        //    if (profile == null)
-        //        return NotFound(new { error = "Profile not found" });
+            if (!allowedExtensions.Contains(ext))
+            {
+                return StatusCode(405, new
+                {
+                    success = false,
+                    data = new { error = "File type must be .pdf, .doc, .txt, .pages" }
+                });
+            }
 
-        //    // Fetch related data
-        //    var userQuery = @"SELECT Id, Email, Name, Role, Subscription FROM Users WHERE Id = @UserId";
-        //    var userRef = await _db.QueryFirstOrDefaultAsync<UserDto>(userQuery, new { UserId = userId });
+            // Delete old resume if exists
+            if (!string.IsNullOrEmpty(jobSeeker.ResumeBlobName))
+            {
+                var deleted = await _fileService.DeleteFileAsync(jobSeeker.ResumeBlobName);
+                if (deleted)
+                {
+                    await _profileService.RemoveResumeReferenceAsync(jobSeeker.Id);
+                }
+            }
 
-        //    var orgQuery = @"SELECT Id, Name FROM Organizations WHERE Id = @OrgId";
-        //    var organization = await _db.QueryFirstOrDefaultAsync<OrganizationDto>(orgQuery, new { OrgId = profile.OrganizationId });
+            // Upload new resume
+            var uploadResult = await _fileService.UploadFileAsync(file);
+            if (uploadResult.Success)
+            {
+                await _profileService.SaveResumeAsync(jobSeeker.Id, file.FileName, uploadResult.BlobName, uploadResult.FullUrl);
 
-        //    var savedJobsQuery = @"
-        //SELECT j.Id, j.Title, j.CompanyName 
-        //FROM SavedJobs sj
-        //JOIN Jobs j ON sj.JobId = j.Id
-        //WHERE sj.ProfileId = @ProfileId";
-        //    var savedJobs = (await _db.QueryAsync<JobDto>(savedJobsQuery, new { ProfileId = profile.Id })).ToList();
+                return Ok(new
+                {
+                    success = true,
+                    data = await _profileService.GetProfileByUsernameAsync(userId)
+                });
+            }
 
-        //    var recentJobsQuery = @"
-        //SELECT j.Id, j.Title, j.CompanyName 
-        //FROM RecentlyViewedJobs rv
-        //JOIN Jobs j ON rv.JobId = j.Id
-        //WHERE rv.ProfileId = @ProfileId";
-        //    var recentlyViewedJobs = (await _db.QueryAsync<JobDto>(recentJobsQuery, new { ProfileId = profile.Id })).ToList();
-
-        //    // Chatrooms with nested user profiles
-        //    var chatRoomsQuery = @"
-        //SELECT c.Id, c.RoomName, c.Image 
-        //FROM ProfileChatrooms pc
-        //JOIN Chatrooms c ON c.Id = pc.ChatroomId
-        //WHERE pc.ProfileId = @ProfileId";
-        //    var chatRooms = (await _db.QueryAsync<ChatRoomDto>(chatRoomsQuery, new { ProfileId = profile.Id })).ToList();
-
-        //    foreach (var chatRoom in chatRooms)
-        //    {
-        //        var usersInRoomQuery = @"
-        //    SELECT p.Id, p.FirstName, p.LastName
-        //    FROM ProfileChatrooms pc
-        //    JOIN Profiles p ON pc.ProfileId = p.Id
-        //    WHERE pc.ChatroomId = @RoomId";
-        //        chatRoom.Users = (await _db.QueryAsync<ChatUserDto>(usersInRoomQuery, new { RoomId = chatRoom.Id })).ToList();
-
-        //        foreach (var user in chatRoom.Users)
-        //        {
-        //            var imgQuery = "SELECT TOP 1 FullUrl FROM ProfileImages WHERE ProfileId = @ProfileId";
-        //            user.ProfileImg = await _db.QueryFirstOrDefaultAsync<string>(imgQuery, new { ProfileId = user.Id });
-        //        }
-        //    }
-
-        //    // Return structured response
-        //    var response = new
-        //    {
-        //        profile.Id,
-        //        profile.FirstName,
-        //        profile.LastName,
-        //        profile.Email,
-        //        profile.JobTitle,
-        //        profile.Phone,
-        //        profile.CreatedAt,
-        //        UserRef = userRef,
-        //        Organization = organization,
-        //        RecentlyViewedJobs = recentlyViewedJobs,
-        //        SavedJobs = savedJobs,
-        //        ChatRooms = chatRooms
-        //    };
-
-        //    return Ok(new { success = true, data = response });
-        //}
-
-
-        //[HttpPost("api/profiles")]
-        //public async Task<IActionResult> CreateProfile([FromBody] CreateProfileRequest request)
-        //{
-        //    using (var connection = new SqlConnection(_connectionString))
-        //    {
-        //        // Query user so that we can update the role
-        //        var user = await connection.QuerySingleOrDefaultAsync<User>("SELECT * FROM Users WHERE Id = @Id", new { Id = request.UserId });
-
-        //        // Find if profile already exists
-        //        var profile = await connection.QuerySingleOrDefaultAsync<Profile>("SELECT * FROM Profiles WHERE UserRef = @UserRef", new { UserRef = request.UserId });
-
-        //        if (profile != null) return BadRequest(new { error = "Profile already exists!" });
-
-        //        Profile schema;
-        //        if (request.Role == "jobSeeker")
-        //        {
-        //            schema = new JobSeekerProfile
-        //            {
-        //                UserRef = request.UserId,
-        //                Email = user.Email,
-        //                // Map other properties from request
-        //            };
-        //        }
-        //        else if (request.Role == "recruiter")
-        //        {
-        //            schema = new RecruiterProfile
-        //            {
-        //                UserRef = request.UserId,
-        //                Email = user.Email,
-        //                // Map other properties from request
-        //            };
-        //        }
-        //        else
-        //        {
-        //            return NotFound(new { error = "Invalid role" });
-        //        }
-
-        //        // Save profile
-        //        await connection.ExecuteAsync("INSERT INTO Profiles (UserRef, Email, ...) VALUES (@UserRef, @Email, ...)", schema);
-
-        //        user.Role = request.Role;
-        //        await connection.ExecuteAsync("UPDATE Users SET Role = @Role WHERE Id = @Id", new { Role = user.Role, Id = user.Id });
-
-        //        return Ok(new { success = true, data = schema });
-        //    }
-        //}
+            return StatusCode(500, new { success = false, error = "Resume upload failed" });
+        }
 
     }
 }

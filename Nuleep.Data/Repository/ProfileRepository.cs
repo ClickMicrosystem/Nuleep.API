@@ -18,6 +18,37 @@ namespace Nuleep.Data.Repository
             _db = new SqlConnection(config.GetConnectionString("DefaultConnection"));
         }
 
+        public async Task SaveResumeAsync(int jobSeekerId, string fileName, string blobName, string fullUrl)
+        {
+            var sql = @"
+            UPDATE JobSeekers
+            SET ResumeFileName = @FileName,
+                ResumeBlobName = @BlobName,
+                ResumeUrl = @Url
+            WHERE Id = @Id";
+
+            await _db.ExecuteAsync(sql, new
+            {
+                Id = jobSeekerId,
+                FileName = fileName,
+                BlobName = blobName,
+                Url = fullUrl
+            });
+        }
+
+        public async Task RemoveResumeReferenceAsync(int jobSeekerId)
+        {
+            var sql = @"
+            UPDATE JobSeekers
+            SET ResumeFileName = NULL,
+                ResumeBlobName = NULL,
+                ResumeUrl = NULL
+            WHERE Id = @Id";
+
+            await _db.ExecuteAsync(sql, new { Id = jobSeekerId });
+        }
+
+
         public async Task<dynamic> GetUserByUsernameAsync(string userId)
         {
             Profile profile = new Profile();

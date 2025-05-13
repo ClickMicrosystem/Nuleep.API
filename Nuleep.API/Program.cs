@@ -71,6 +71,9 @@ builder.Services.AddSwaggerGen(c =>
 
 
 // DI Registrations
+
+builder.Services.AddSingleton<AzureFileService>();
+
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 

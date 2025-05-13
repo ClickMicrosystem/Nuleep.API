@@ -18,6 +18,16 @@ namespace Nuleep.Business.Services
         {
             return await _profileRepository.GetUserByUsernameAsync(username);
         }
+        
+        public async Task RemoveResumeReferenceAsync(int id)
+        {
+            await _profileRepository.RemoveResumeReferenceAsync(id);
+        }
+        
+        public async Task SaveResumeAsync(int jobSeekerId, string fileName, string blobName, string fullUrl)
+        {
+            await _profileRepository.SaveResumeAsync(jobSeekerId, fileName, blobName, fullUrl);
+        }
 
         public async Task<Profile> GetExistingProfileByUserAsync(string userId)
         {

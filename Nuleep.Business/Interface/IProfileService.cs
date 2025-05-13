@@ -10,6 +10,8 @@ namespace Nuleep.Business.Interface
     public interface IProfileService
     {
         Task<dynamic> GetProfileByUsernameAsync(string username);
+        Task RemoveResumeReferenceAsync(int id);
+        Task SaveResumeAsync(int jobSeekerId, string fileName, string blobName, string fullUrl);
         Task<Profile> GetExistingProfileByUserAsync(string userId);
         Task<JobSeeker> CreateJobSeekerProfile(CreateOrUpdateProfileRequest profileRequest);
         Task<Recruiter> CreateRecruiterProfile(CreateOrUpdateProfileRequest profileRequest);
