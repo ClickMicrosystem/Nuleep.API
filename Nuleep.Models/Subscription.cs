@@ -8,6 +8,8 @@ namespace Nuleep.Models
 {
     public class Subscription
     {
+        public int Id { get; set; }
+        public int UserId { get; set; }
         public string? Customer_Id { get; set; }
         public DateTime Period_Start { get; set; }
         public DateTime Period_End { get; set; }

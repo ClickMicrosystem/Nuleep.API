@@ -6,6 +6,7 @@ using Dapper;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using Nuleep.Data.Interface;
 using Azure.Core;
+using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace Nuleep.Data.Repository
 {
@@ -48,15 +49,14 @@ namespace Nuleep.Data.Repository
             await _db.ExecuteAsync(sql, new { Id = jobSeekerId });
         }
 
-
-        public async Task<dynamic> GetUserByUsernameAsync(string userId)
+        public async Task<dynamic> ViewProfile(int profileId)
         {
             Profile profile = new Profile();
+            var profileQuery = "SELECT UserRef FROM Profile WHERE Id = @profileId";
+            var userId = await _db.QueryFirstOrDefaultAsync<int>(profileQuery, new { profileId = profileId });
             var sql = "SELECT * FROM User WHERE Id = @UserRefId";
             var user = await _db.QueryFirstOrDefaultAsync<User>(sql, new { UserRefId = userId });
-            var profileQuery = "SELECT Id FROM Profile WHERE Id = @UserRefId";
-            var profileId = await _db.QueryFirstOrDefaultAsync<int>(profileQuery, new { UserRefId = userId });
-            if(user == null)
+            if (user == null)
             {
                 return profile;
             }
@@ -65,9 +65,45 @@ namespace Nuleep.Data.Repository
                 return await GetJobSeekerByProfileId(profileId);
             }
             else
-            {                
+            {
                 return await GetRecruiterByProfileId(profileId);
             }
+        }
+
+
+        public async Task<dynamic> GetUserByUsernameAsync(string userId)
+        {
+            Profile profile = new Profile();
+            var user = new User();
+            var profileQuery = "";
+            var sql = "";
+            var profileId = 0;
+            try
+            {
+                sql = "SELECT * FROM Users WHERE Id = @UserRefId";
+                user = await _db.QueryFirstOrDefaultAsync<User>(sql, new { UserRefId = int.Parse(userId) });
+                profileQuery = "SELECT Id FROM Profile WHERE UserRef = @UserRefId";
+                profileId = await _db.QueryFirstOrDefaultAsync<int>(profileQuery, new { UserRefId = int.Parse(userId) });
+                
+            }
+            catch(Exception e)
+            {
+                Console.WriteLine("Exception Occured");
+            }
+
+            if (user == null)
+            {
+                return profile;
+            }
+            if (user.Role == "jobseeker")
+            {
+                return await GetJobSeekerByProfileId(profileId);
+            }
+            else
+            {
+                return await GetRecruiterByProfileId(profileId);
+            }
+
         }
         
         public async Task<Profile> GetExistingProfileByUserAsync(string userId)
@@ -78,7 +114,7 @@ namespace Nuleep.Data.Repository
         
         private dynamic GetCreatedProfileData(string profileId)
         {
-            var query = @"SELECT * FROM Profile WHERE UserId = @UserId;
+            var query = @"SELECT Id, FirstName, LastName, FullName, JobTitle, Email FROM Profile WHERE UserId = @UserId;
                             SELECT Id, Email, Role FROM Users WHERE Id = @UserId;                            
                             SELECT Id, Email, Name FROM Organizations WHERE ProfileId = (SELECT Id FROM Profile WHERE UserId = @UserId);
                             SELECT * FROM Subscriptions WHERE UserId = @UserId;
@@ -586,6 +622,11 @@ namespace Nuleep.Data.Repository
                         SELECT * FROM Interests WHERE ProfileId = @ProfileId;
                         SELECT * FROM Resumes WHERE ProfileId = @ProfileId;
                         SELECT * FROM ProjectImages WHERE ProfileId = @ProfileId;
+                        SELECT * FROM HeaderImages where [JobSeekerId] = (Select Id from JobSeekers WHERE ProfileId = @ProfileId);
+                        Select Experience from CareerJourneyExperience cje inner join CareerJourney cj on cje.CareerJourneyId = cj.Id
+                        inner join JobSeekers js on cj.JobSeekerId = js.Id where js.ProfileId = @ProfileId;
+                        Select Training from CareerJourneyTraining cjt inner join CareerJourney cj on cjt.CareerJourneyId = cj.Id
+                        inner join JobSeekers js on cj.JobSeekerId = js.Id where js.ProfileId = @ProfileId;
                         ";
 
             using var multi = await _db.QueryMultipleAsync(sql, new { ProfileId = profileId });
@@ -602,100 +643,111 @@ namespace Nuleep.Data.Repository
             var careerJourney = (await multi.ReadAsync<CareerJourney>()).ToList();
             var myStory = (await multi.ReadAsync<MyStory>()).ToList();
             var profileImg = (await multi.ReadAsync<ProfileImage>()).ToList();
+            var projectImage = (await multi.ReadAsync<ProjectImage>()).ToList();
+            var headerImage = await multi.ReadFirstOrDefaultAsync<ProfileImage>();
+            var careerJourneyExperence = (await multi.ReadAsync<string>()).ToList();
+            var careerJourneyTraining = (await multi.ReadAsync<string>()).ToList();
             //var interests = (await multi.ReadAsync<>()).ToList();
             //var resumes = (await multi.ReadAsync<Resum>()).ToList();
             //var projectImages = (await multi.ReadAsync<Project>()).ToList();
 
             return new JobSeeker
             {
+                HeaderImage = new ProfileImage() { BlobName = headerImage?.BlobName, FileName= headerImage?.FileName, FullUrl= headerImage?.FullUrl },
+                CareerJourney = new CareerJourney() { Experience = careerJourneyExperence , Training = careerJourneyTraining },
+                MyStory = new MyStory() { Activities = [] },
+                Remote = jobSeekerData.Remote,
+                Skills = jobSeekerData.Skills.Select(s => s.Trim()).ToList() ?? new List<string>(),
+                Classes = jobSeekerData.Classes.Select(s => s.Trim()).ToList() ?? new List<string>(),
+                SaveddJobs = [],
+                RecentlyViewJobs = [],
+                IsDelete = jobSeekerData.IsDelete,
+                ChatRooms = [],
+                Awards = awards,
+                ProjectImage = projectImage,
+                RecentlyViewedCourses = [],
+                SavedCourses = [],
+                Education = education,
+                Experience = experience,
+                References = references,
+                Interests = [],
+                Resume = [],
+                CreatedAt = jobSeekerData.CreatedAt,
+                ProjectImg = profileImg,
                 Id = profile.Id,
                 User = new User
                 {
                     Id = user.Id,
-                    Username = user.Username,
                     Email = user.Email,
-                    subscription = subscription
+                    Role = user.Role
                 },
-                FirstName = profile.FirstName,
-                LastName = profile.LastName,
                 Email = profile.Email,
+                LastName = profile.LastName,
+                FirstName = profile.FirstName,                
                 JobTitle = profile.JobTitle,
-                Phone = profile.Phone,
-                Bio = jobSeekerData.Bio,
-                CurrentCompany = jobSeekerData.CurrentCompany,
-                Remote = jobSeekerData.Remote,
-                WebsiteUrl = jobSeekerData.WebsiteUrl,
-                careerPath = jobSeekerData.careerPath,
-                StreetAddress = jobSeekerData.StreetAddress,
-                CountryRegion = jobSeekerData.CountryRegion,
-                City = jobSeekerData.City,
-                StateProvince = jobSeekerData.StateProvince,
-                ZipPostal = jobSeekerData.ZipPostal,
-                Skills = jobSeekerData.Skills,//.Split(',').Select(s => s.Trim()).ToList() ?? new List<string>(),
-                Classes = jobSeekerData.Classes,//?.Split(',').Select(s => s.Trim()).ToList() ?? new List<string>(),
-                Education = education,
-                Awards = awards,
-                Experience = experience,
-                References = references,
-                CareerJourney = null,
-                MyStory = null,
-                ProfileImg = profileImg,
-                Interests = [],
-                Resume = [],
-                ProjectImg = []
+                StreetAddress = jobSeekerData.StreetAddress
             };
         }
 
         private async Task<Recruiter> GetRecruiterByProfileId(int profileId)
         {
-            string sql = @"
-                            SELECT * FROM Profile WHERE Id = @ProfileId;
-                            SELECT * FROM Recruiters WHERE ProfileId = @ProfileId;
-                            SELECT * FROM Users WHERE Id = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
-                            SELECT * FROM Subscriptions WHERE UserId = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
-                            SELECT * FROM Organization WHERE Id = (SELECT OrganizationId FROM Profile WHERE Id = @ProfileId);
-                            SELECT * FROM Education WHERE ProfileId = @ProfileId;
-                            SELECT * FROM Awards WHERE ProfileId = @ProfileId;
-                            SELECT * FROM ProfileImage WHERE ProfileId = @ProfileId;
-                            ";
-
-            using var multi = await _db.QueryMultipleAsync(sql, new { ProfileId = profileId });
-
-            var profile = await multi.ReadFirstOrDefaultAsync<Profile>();
-            var recruiterData = await multi.ReadFirstOrDefaultAsync<Recruiter>();
-            var user = await multi.ReadFirstOrDefaultAsync<User>();
-            var subscription = await multi.ReadFirstOrDefaultAsync<Subscription>();
-            var organization = await multi.ReadFirstOrDefaultAsync<Organization>();
-            var education = (await multi.ReadAsync<Education>()).ToList();
-            var awards = (await multi.ReadAsync<Award>()).ToList();
-            var profileImg = (await multi.ReadAsync<ProfileImage>()).ToList();
-
-            return new Recruiter
+            try
             {
-                Id = profile.Id,
-                User = new User
+                string sql = @"
+                                SELECT * FROM Profile WHERE Id = @ProfileId;
+                                SELECT * FROM Recruiters WHERE ProfileId = @ProfileId;
+                                SELECT * FROM Users WHERE Id = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
+                                SELECT * FROM Subscriptions WHERE UserId = (SELECT UserRef FROM Profile WHERE Id = @ProfileId);
+                                SELECT * FROM Organizations WHERE ProfileId = @ProfileId;
+                                SELECT * FROM Education WHERE ProfileId = @ProfileId;
+                                SELECT * FROM Awards WHERE ProfileId = @ProfileId;
+                                SELECT * FROM ProfileImages WHERE ProfileId = @ProfileId;
+                                ";
+
+                using var multi = await _db.QueryMultipleAsync(sql, new { ProfileId = profileId });
+
+                var profile = await multi.ReadFirstOrDefaultAsync<Profile>();
+                var recruiterData = await multi.ReadFirstOrDefaultAsync<Recruiter>();
+                var user = await multi.ReadFirstOrDefaultAsync<User>();
+                var subscription = await multi.ReadFirstOrDefaultAsync<Subscription>();
+                var organization = await multi.ReadFirstOrDefaultAsync<Organization>();
+                var education = (await multi.ReadAsync<Education>()).ToList();
+                var awards = (await multi.ReadAsync<Award>()).ToList();
+                var projectImage = (await multi.ReadAsync<ProfileImage>()).ToList();
+
+                return new Recruiter
                 {
-                    Id = user.Id,
-                    Username = user.Username,
-                    Email = user.Email,
-                    subscription = subscription
-                },
-                FirstName = profile.FirstName,
-                LastName = profile.LastName,
-                Email = profile.Email,
-                JobTitle = profile.JobTitle,
-                Phone = profile.Phone,
-                About = recruiterData.About,
-                Bio = recruiterData.Bio,
-                StreetAddress = recruiterData.StreetAddress,
-                Title = recruiterData.Title,
-                OrganizationRole = recruiterData.OrganizationRole,
-                OrganizationApproved = recruiterData.OrganizationApproved,
-                Organization = organization,
-                Education = education,
-                Awards = awards,
-                ProfileImg = profileImg
-            };
+                    Id = profile.Id,
+                    User = new User
+                    {
+                        Id = user.Id,
+                        Username = user.Username,
+                        Email = user.Email,
+                        Role = user.Role,
+                        subscription = subscription
+                    },
+                    FirstName = profile.FirstName,
+                    LastName = profile.LastName,
+                    Email = profile.Email,
+                    JobTitle = profile.JobTitle,
+                    Phone = profile.Phone,
+                    About = recruiterData.About,
+                    Bio = recruiterData.Bio,
+                    StreetAddress = recruiterData.StreetAddress,
+                    Title = recruiterData.Title,
+                    OrganizationRole = recruiterData.OrganizationRole,
+                    OrganizationApproved = recruiterData.OrganizationApproved,
+                    Organization = organization,
+                    //Education = education,
+                    //Awards = awards,
+                    //ProjectImage = projectImage
+                };
+
+            }
+            catch (Exception ex) {
+                Console.WriteLine(ex);
+                return new Recruiter();
+            }
         }
 
         public async Task<ProfileResponse> UpdateProfile(CreateOrUpdateProfileRequest request)

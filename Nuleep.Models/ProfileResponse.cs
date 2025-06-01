@@ -21,11 +21,11 @@ namespace Nuleep.Models
         public DateTime CreatedAt { get; set; }
         public Guid UserRef { get; set; }
         public List<ChatRoomDto> ChatRooms { get; set; } = new();
-        public List<MediaDto> ProfileImg { get; set; } = new();
+        public List<ProjectImage> ProfileImg { get; set; } = new();
 
         // JobSeeker
         public string? Bio { get; set; }
-        public MediaDto? HeaderImage { get; set; }
+        public ProjectImage? HeaderImage { get; set; }
         public string? CurrentCompany { get; set; }
         public bool? Remote { get; set; }
         public string? WebsiteUrl { get; set; }
@@ -38,7 +38,7 @@ namespace Nuleep.Models
 
         public CareerJourneyDto? CareerJourney { get; set; }
         public List<AwardDto> Awards { get; set; } = new();
-        public List<MediaDto> ProjectImg { get; set; } = new();
+        public List<ProjectImage> ProjectImg { get; set; } = new();
         public List<CourseDto> RecentlyViewedCourses { get; set; } = new();
         public List<CourseDto> SavedCourses { get; set; } = new();
         public List<EducationDto> Education { get; set; } = new();
@@ -46,8 +46,8 @@ namespace Nuleep.Models
         public List<ReferenceDto> References { get; set; } = new();
         public MyStoryDto? MyStory { get; set; }
         public List<string> Skills { get; set; } = new();
-        public List<MediaDto> Interests { get; set; } = new();
-        public List<MediaDto> Resume { get; set; } = new();
+        public List<ProjectImage> Interests { get; set; } = new();
+        public List<ProjectImage> Resume { get; set; } = new();
         public List<string> Classes { get; set; } = new();
         public List<Guid> SavedJobs { get; set; } = new();
         public List<Guid> RecentlyViewedJobs { get; set; } = new();
@@ -63,7 +63,7 @@ namespace Nuleep.Models
     }
 
 
-    public class MediaDto
+    public class ProjectImage
     {
         public string? FileName { get; set; }
         public string? BlobName { get; set; }
@@ -146,7 +146,7 @@ namespace Nuleep.Models
     public class MyStoryActivityDto
     {
         public string? Title { get; set; }
-        public MediaDto? Image { get; set; }
+        public ProjectImage? Image { get; set; }
         public List<string> Skills { get; set; } = new();
     }
 

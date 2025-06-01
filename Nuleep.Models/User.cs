@@ -15,6 +15,8 @@ namespace Nuleep.Models
         public string Password { get; set; }
         public string ResetPasswordToken { get; set; }
         public DateTime? ResetPasswordExpire { get; set; }
+
+        [JsonPropertyName("role")]
         public string Role { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.Now;
         public bool IsDelete { get; set; } = false;

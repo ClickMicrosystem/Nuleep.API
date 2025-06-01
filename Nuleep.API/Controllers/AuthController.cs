@@ -44,7 +44,7 @@ namespace Nuleep.API.Controllers
                 return Ok(new
                 {
                     token = GenerateToken(user),
-                    //data = user, // no need to paas user data
+                    data = user, // no need to paas user data
                     expTime = DateTime.UtcNow.AddDays(1).Ticks // Token expiration time
                 });
             }

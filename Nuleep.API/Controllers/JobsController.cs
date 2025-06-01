@@ -39,6 +39,7 @@ namespace Nuleep.API.Controllers
             return Ok(new { success = true, data = user });
         }
 
+        [HttpPost]
         public async Task<IActionResult> UpdateJob(int userId, int jobId, Job updatedJob)
         {
             // Get recruiter profile by user ID

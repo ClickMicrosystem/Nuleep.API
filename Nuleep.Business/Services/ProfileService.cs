@@ -19,6 +19,11 @@ namespace Nuleep.Business.Services
             return await _profileRepository.GetUserByUsernameAsync(username);
         }
         
+        public async Task<dynamic> ViewProfile(int profileId)
+        {
+            return await _profileRepository.ViewProfile(profileId);
+        }
+        
         public async Task RemoveResumeReferenceAsync(int id)
         {
             await _profileRepository.RemoveResumeReferenceAsync(id);

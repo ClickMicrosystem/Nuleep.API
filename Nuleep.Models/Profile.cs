@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Nuleep.Models
@@ -18,6 +19,7 @@ namespace Nuleep.Models
         public bool IsDelete { get; set; } = false;
         public int? UserId { get; set; } // shall be removed
 
+        [JsonPropertyName("userRef")]
         public User? User { get; set; }
         //public User? UserRefId { get; set; }
         public string? Phone { get; set; }
@@ -25,7 +27,7 @@ namespace Nuleep.Models
         public int? ChatRoomsId { get; set; } // shall be removed
         public int? ProfileImgId { get; set; } // shall be removed
         public List<Chatroom> ChatRooms { get; set; } = new();
-        public List<ProfileImage> ProfileImg { get; set; } = new();
+        public List<ProjectImage> ProjectImage { get; set; } = new();
     }
 
 }

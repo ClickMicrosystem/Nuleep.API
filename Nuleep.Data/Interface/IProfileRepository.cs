@@ -5,6 +5,7 @@ namespace Nuleep.Data.Interface
     public interface IProfileRepository
     {
         Task<dynamic> GetUserByUsernameAsync(string username);
+        Task<dynamic> ViewProfile(int profileId);
         Task RemoveResumeReferenceAsync(int id);
         Task SaveResumeAsync(int jobSeekerId, string fileName, string blobName, string fullUrl);
         Task<Profile> GetExistingProfileByUserAsync(string userId);

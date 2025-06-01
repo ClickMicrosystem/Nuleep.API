@@ -1,8 +1,11 @@
 ﻿using System.Data;
 using System.Net;
 using System.Security.Claims;
+using System.Text;
 using Azure.Core;
 using Dapper;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -14,6 +17,7 @@ using Nuleep.Business.Services;
 using Nuleep.Data.Interface;
 using Nuleep.Data.Repository;
 using Nuleep.Models;
+using UglyToad.PdfPig;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Nuleep.API.Controllers
@@ -24,13 +28,14 @@ namespace Nuleep.API.Controllers
     public partial class ProfilesController : ControllerBase
     {
         private readonly IProfileService _profileService;
-        private readonly AzureFileService _fileService;
+        //private readonly AzureFileService _azurefileService;
         private readonly IProfileRepository _profileRepository;
 
-        public ProfilesController(IProfileService profileService, AzureFileService fileService, IProfileRepository profileRepository)
+        //public ProfilesController(IProfileService profileService, AzureFileService azurefileService, IProfileRepository profileRepository)
+        public ProfilesController(IProfileService profileService, IProfileRepository profileRepository)
         {
             _profileService = profileService;
-            _fileService = fileService;
+            //_azurefileService = azurefileService;
             _profileRepository = profileRepository;
         }
 
@@ -50,6 +55,20 @@ namespace Nuleep.API.Controllers
                 return NotFound();
 
             return Ok(new { success = true, data = user });
+        }
+
+
+        [HttpGet("{profileId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ViewProfile(int profileId)
+        {
+            //var UserId = int.Parse(User.Claims.ToList()[0].Value);
+            var profile = await _profileService.ViewProfile(profileId);
+
+            if (profile == null)
+                return NotFound(new { error = "Profile not found" });
+
+            return Ok(new { success = true, data = profile });
         }
 
 
@@ -147,7 +166,7 @@ namespace Nuleep.API.Controllers
             //});
         }
 
-        [HttpDelete("api/profiles")]
+        [HttpDelete]
         [Authorize]
         public async Task<IActionResult> DeleteProfile()
         {
@@ -167,54 +186,221 @@ namespace Nuleep.API.Controllers
             return Ok(new { success = true, data = new { } });
         }
 
-        [HttpPost]
-        [Authorize]
-        public async Task<IActionResult> UploadResume([FromForm] IFormFile file)
+        //[HttpPost("api/uploadResume")]
+        //[Authorize]
+        //public async Task<IActionResult> UploadResume([FromForm] IFormFile file)
+        //{
+        //    var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
+        //    var jobSeeker = await _profileService.GetProfileByUsernameAsync(userId);
+
+        //    if (jobSeeker == null)
+        //        return NotFound(new { error = "Profile not found" });
+
+        //    var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".pages", ".txt" };
+        //    var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+
+        //    if (!allowedExtensions.Contains(ext))
+        //    {
+        //        return StatusCode(405, new
+        //        {
+        //            success = false,
+        //            data = new { error = "File type must be .pdf, .doc, .txt, .pages" }
+        //        });
+        //    }
+
+        //    // Delete old resume if exists
+        //    if (!string.IsNullOrEmpty(jobSeeker.ResumeBlobName))
+        //    {
+        //        var deleted = await _azurefileService.DeleteAsync("resumes", jobSeeker.ResumeBlobName);
+        //        if (deleted)
+        //        {
+        //            await _profileService.RemoveResumeReferenceAsync(jobSeeker.Id);
+        //        }
+        //    }
+
+        //    // Upload new resume
+        //    var uploadResult = await _azurefileService.UploadAsync("resumes", file);
+        //    if (uploadResult.Success)
+        //    {
+        //        await _profileService.SaveResumeAsync(jobSeeker.Id, file.FileName, uploadResult.Data.BlobName, uploadResult.Data.FullUrl);
+
+        //        return Ok(new
+        //        {
+        //            success = true,
+        //            data = await _profileService.GetProfileByUsernameAsync(userId)
+        //        });
+        //    }
+
+        //    return StatusCode(500, new { success = false, error = "Resume upload failed" });
+        //}
+
+        
+        
+        //[HttpPut("{profileId}/headerImage")]
+        //[Authorize]
+        //public async Task<IActionResult> EditHeaderImage([FromRoute] int profileId, IFormFile file)
+        //{
+        //    var jobSeeker = await _profileService.ViewProfile(profileId);
+        //    if (jobSeeker == null)
+        //        return BadRequest(new { error = "Profile does not exist!" });
+
+        //    // Delete existing header image if present
+        //    if (jobSeeker.HeaderImage != null)
+        //    {
+        //        var deleteResult = await _azurefileService.DeleteAsync("headerimages", jobSeeker.HeaderImage.BlobName);
+        //        if (deleteResult)
+        //        {
+        //            jobSeeker.HeaderImage = null;
+        //            // await _profileRepository.UpdateHeaderImageAsync(profileId, null); // Remove reference from DB
+        //        }
+        //    }
+
+        //    // Upload new header image
+        //    var uploadResult = await _azurefileService.UploadAsync("headerimages", file);
+        //    if (uploadResult.Success)
+        //    {
+        //        jobSeeker.HeaderImage = uploadResult.Data;
+
+        //        //await _profileRepository.UpdateHeaderImageAsync(profileId, jobSeeker.HeaderImage);
+        //    }
+
+        //    return Ok(new { success = true, data = jobSeeker });
+        //}
+
+
+        //[HttpPost("fileToText")]
+        //[Authorize]
+        //public async Task<IActionResult> FileToText([FromForm] IFormFile file)
+        //{
+        //    await Task.Delay(1);
+        //    if (file == null || file.Length == 0)
+        //        return BadRequest(new { error = "No file uploaded" });
+
+        //    var extension = Path.GetExtension(file.FileName).ToLower();
+
+        //    if (extension != ".pdf" && extension != ".docx")
+        //    {
+        //        return BadRequest(new { error = "Only .docx and .pdf format allowed!" });
+        //    }
+
+        //    string extractedText;
+
+        //    using var stream = file.OpenReadStream();
+        //    if (extension == ".pdf")
+        //    {
+        //        extractedText = ExtractTextFromPdf(stream);
+        //    }
+        //    else if (extension == ".docx")
+        //    {
+        //        extractedText = ExtractTextFromDocx(stream);
+        //    }
+        //    else
+        //    {
+        //        return BadRequest(new { error = "Unsupported file type" });
+        //    }
+
+        //    return Ok(new
+        //    {
+        //        success = true,
+        //        data = extractedText
+        //    });
+        //}
+
+        private string ExtractTextFromPdf(Stream stream)
         {
-            var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
-            var jobSeeker = await _profileService.GetProfileByUsernameAsync(userId);
-            //var jobSeeker = await _profileRepository.GetJobSeekerByUserIdAsync(userId);
+            var textBuilder = new StringBuilder();
+            using var pdf = PdfDocument.Open(stream);
+            foreach (var page in pdf.GetPages())
+            {
+                textBuilder.AppendLine(page.Text);
+            }
+            return textBuilder.ToString();
+        }
+
+        private string ExtractTextFromDocx(Stream stream)
+        {
+            var textBuilder = new StringBuilder();
+            using var wordDoc = WordprocessingDocument.Open(stream, false);
+            var body = wordDoc.MainDocumentPart?.Document?.Body;
+            if (body != null)
+            {
+                textBuilder.Append(body.InnerText);
+            }
+            return textBuilder.ToString();
+        }
+
+        [HttpPost("findimg")]
+        [Authorize]
+        public async Task<IActionResult> FindImg([FromBody] FindImgRequest request)
+        {
+            if (string.IsNullOrEmpty(request.ContainerName))
+                return BadRequest(new { error = "Container name is required" });
+
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var jobSeeker = await _profileRepository.GetExistingProfileByUserAsync(userId.ToString());
 
             if (jobSeeker == null)
                 return NotFound(new { error = "Profile not found" });
 
-            var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".pages", ".txt" };
-            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            //var result = await _azurefileService.FindAsync(request.ContainerName);
 
-            if (!allowedExtensions.Contains(ext))
+            return Ok(new
             {
-                return StatusCode(405, new
-                {
-                    success = false,
-                    data = new { error = "File type must be .pdf, .doc, .txt, .pages" }
-                });
-            }
-
-            // Delete old resume if exists
-            if (!string.IsNullOrEmpty(jobSeeker.ResumeBlobName))
-            {
-                var deleted = await _fileService.DeleteFileAsync(jobSeeker.ResumeBlobName);
-                if (deleted)
-                {
-                    await _profileService.RemoveResumeReferenceAsync(jobSeeker.Id);
-                }
-            }
-
-            // Upload new resume
-            var uploadResult = await _fileService.UploadFileAsync(file);
-            if (uploadResult.Success)
-            {
-                await _profileService.SaveResumeAsync(jobSeeker.Id, file.FileName, uploadResult.BlobName, uploadResult.FullUrl);
-
-                return Ok(new
-                {
-                    success = true,
-                    data = await _profileService.GetProfileByUsernameAsync(userId)
-                });
-            }
-
-            return StatusCode(500, new { success = false, error = "Resume upload failed" });
+                success = true,
+                jobSeeker
+                //result
+            });
         }
 
+
+        //[HttpPost("projectImageUpload")]
+        //[Authorize]
+        //public async Task<IActionResult> ProjectImgUpload([FromForm] IFormFile file,[FromForm] int? removeName)
+        //{
+        //    var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+        //    var jobSeeker = await _profileRepository.GetExistingProfileByUserAsync(userId.ToString());
+
+        //    if (jobSeeker == null)
+        //        return NotFound(new { error = "Profile not found" });
+
+        //    var uploadResult = await _azurefileService.UploadAsync("projectimg", file);
+
+        //    if (!uploadResult.Success)
+        //        return BadRequest(new { error = "File upload failed" });
+
+        //    var uploadedData = uploadResult.Data;
+
+        //    // Deserialize existing project images (assuming it's stored as JSON or List<BlobResultDto>)
+        //    var projectImages = jobSeeker.ProjectImage ?? new List<ProjectImage>();
+
+        //    if (removeName.HasValue && removeName.Value >= 0 && removeName.Value < projectImages.Count)
+        //    {
+        //        var toRemove = projectImages[removeName.Value];
+
+        //        await _azurefileService.DeleteAsync("projectimg", toRemove.BlobName);
+
+        //        projectImages[removeName.Value] = uploadedData;
+        //    }
+        //    else
+        //    {
+        //        projectImages.Add(uploadedData);
+        //    }
+
+        //    jobSeeker.ProjectImage = projectImages;
+
+        //    //await _profileRepository.Upl(userId, projectImages);
+
+        //    return Ok(new
+        //    {
+        //        success = true,
+        //        data = jobSeeker
+        //    });
+        //}
+    
+    }
+
+    public class FindImgRequest
+    {
+        public string? ContainerName { get; set; }
     }
 }
