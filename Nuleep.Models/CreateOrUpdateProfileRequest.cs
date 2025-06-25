@@ -18,7 +18,7 @@ namespace Nuleep.Models
         public string? Phone { get; set; }
         public string? Role { get; set; }
         public List<Chatroom>? ChatRooms { get; set; }
-        public List<ProfileImage>? ProfileImg { get; set; }
+        public List<MediaImage>? ProfileImg { get; set; }
 
         public List<Education>? Education { get; set; }
         public List<Award>? Awards { get; set; }
@@ -37,7 +37,7 @@ namespace Nuleep.Models
         public string? StateProvince { get; set; }
         public string? ZipPostal { get; set; }
         public CareerJourney? CareerJourney { get; set; }
-        public List<ProfileImage>? ProjectImg { get; set; }
+        public List<MediaImage>? ProjectImg { get; set; }
 
         //public List<CourseModel>? RecentlyViwedCourses { get; set; } // discussion required and shouldnt be in create profile request
 
@@ -47,8 +47,8 @@ namespace Nuleep.Models
         public List<Reference>? References { get; set; }
         public MyStory? MyStory { get; set; }
         public List<string>? Skills { get; set; }
-        public List<ProfileImage>? Interests { get; set; }
-        public List<ProfileImage>? Resume { get; set; }
+        public List<MediaImage>? Interests { get; set; }
+        public List<MediaImage>? Resume { get; set; }
         public List<string>? Classes { get; set; }
 
         //public List<Job>? SavedJobs { get; set; } // discussion required and shouldnt be in create profile request

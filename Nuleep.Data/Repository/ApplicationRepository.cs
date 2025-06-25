@@ -19,13 +19,17 @@ namespace Nuleep.Data.Repository
 
         public async Task<dynamic> GetAllRecruiterApplications(string userId)
         {
-            var recruiter = await _db.QueryFirstOrDefaultAsync<dynamic>(
-                            "SELECT * FROM RecruiterProfiles WHERE UserRef = @UserId",
+            var profileId = await _db.QueryFirstOrDefaultAsync<int>(
+                            "SELECT Id FROM Profile WHERE UserRef = @UserId",
                             new { UserId = userId });
+            
+            var recruiter = await _db.QueryFirstOrDefaultAsync<Recruiter>(
+                            "SELECT * FROM Recruiters WHERE ProfileId = @ProfileId",
+                            new { ProfileId = profileId });
 
             if(recruiter == null)
             {
-                return new { data = recruiter, code = 1 };
+                return GenericClassResponse<dynamic>.Create(recruiter, 1);
             }
 
 
@@ -35,9 +39,9 @@ namespace Nuleep.Data.Repository
               AND ClosingDate >= GETUTCDATE()",
             new { RecruiterId = recruiter.Id })).ToList();
 
-            if (jobs.Count == 0)
+            if (jobs.Count() == 0)
             {
-                return new { data = jobs, code = 2 };
+                return GenericClassResponse<dynamic>.Create(jobs, 2);
             }
 
             var jobIds = jobs.Select(j => (int)j.Id).ToArray();
@@ -46,7 +50,7 @@ namespace Nuleep.Data.Repository
                                 @"SELECT a.*, j.*, p.*
                                 FROM Applications a
                                 INNER JOIN Jobs j ON a.JobId = j.Id
-                                INNER JOIN Profiles p ON a.ProfileId = p.Id
+                                INNER JOIN Profile p ON a.ProfileId = p.Id
                                 WHERE a.JobId IN @JobIds",
                                 (a, j, p) =>
                                 {
@@ -57,7 +61,65 @@ namespace Nuleep.Data.Repository
                                 new { JobIds = jobIds },
                                 splitOn: "Id,Id");
 
-            return new { data = applications, code = 0 };
+            //turn new { data = applications, code = 0 };
+            return GenericClassResponse<dynamic>.Create(applications, 0);
+
+        }
+        
+
+        public async Task<dynamic> GetAllJobSeekerApplications(string userId)
+        {
+            var profileId = await _db.QueryFirstOrDefaultAsync<int>(
+                            "SELECT Id FROM Profile WHERE UserRef = @UserId",
+                            new { UserId = userId });
+            
+            var jobSeeker = await _db.QueryFirstOrDefaultAsync<JobSeeker>(
+                            "SELECT * FROM JobSeekers WHERE ProfileId = @ProfileId",
+                            new { ProfileId = profileId });
+
+            if(jobSeeker == null)
+            {
+                return GenericClassResponse<dynamic>.Create(jobSeeker, 1);
+            }
+
+            var sql = @"
+                        SELECT 
+                            a.Id, a.ProfileId, a.CreatedAt,
+                            j.Id,
+                            o.Id
+                        FROM Applications a
+                        INNER JOIN Jobs j ON a.JobId = j.Id
+                        INNER JOIN Organizations o ON j.OrganizationId = o.Id
+                        WHERE a.ProfileId = @ProfileId
+                        ORDER BY a.CreatedAt DESC";
+
+            var appDictionary = new Dictionary<int, Application>();
+
+            try
+            {
+                var result = await _db.QueryAsync<Application, Job, Organization, Application>(
+                sql,
+                (app, job, org) =>
+                {
+                    if (!appDictionary.TryGetValue(app.Id, out var existingApp))
+                    {
+                        app.Job = job;
+                        job.Organization = org;
+                        appDictionary.Add(app.Id, app);
+                    }
+                    return app;
+                },
+                new { ProfileId = profileId }
+            );
+            }
+            catch(Exception e)
+            {
+
+            }
+
+            
+
+            return GenericClassResponse<dynamic>.Create(appDictionary.Values, 0);
         }
 
         private int GetLoggedInUserId()

@@ -7,17 +7,20 @@ using System.Threading.Tasks;
 
 namespace Nuleep.Models
 {
-    public class ProfileImage
+    public class MediaImage
     {
         [JsonPropertyName("_id")]
         public int? Id { get; set; }
 
         public int? ProfileId { get; set; }
 
+        [JsonPropertyName("fileName")]
         public string? FileName { get; set; }
 
+        [JsonPropertyName("blobName")]
         public string? BlobName { get; set; }
 
+        [JsonPropertyName("fullUrl")]
         public string? FullUrl { get; set; }
     }
 

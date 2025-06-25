@@ -19,6 +19,11 @@ namespace Nuleep.Business.Services
             return await _applicationRepository.GetAllRecruiterApplications(username);
         }
         
+        public async Task<dynamic> GetAllJobSeekerApplications(string username)
+        {
+            return await _applicationRepository.GetAllJobSeekerApplications(username);
+        }
+        
         public async Task<dynamic> GetApplicationsByJob(int jobId)
         {
             return await _applicationRepository.GetApplicationsByJob(jobId);

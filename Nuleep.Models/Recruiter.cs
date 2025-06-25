@@ -9,8 +9,6 @@ namespace Nuleep.Models
 {
     public class Recruiter : Profile
     {
-        [JsonPropertyName("_id")]
-        public int Id { get; set; }
 
         public string About { get; set; }
 

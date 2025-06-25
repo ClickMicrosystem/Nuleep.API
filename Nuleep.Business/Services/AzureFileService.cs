@@ -9,6 +9,11 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Http;
 using Nuleep.Models;
 using System.Text.RegularExpressions;
+using Microsoft.Data.SqlClient;
+using Azure.Core;
+using DocumentFormat.OpenXml.Office2016.Excel;
+using System.Data;
+using Dapper;
 
 namespace Nuleep.Business.Services
 {
@@ -18,6 +23,7 @@ namespace Nuleep.Business.Services
         private readonly string _accountKey;
         private readonly string _container;
         private readonly BlobServiceClient _blobServiceClient;
+        private readonly IDbConnection _db;
 
         public AzureFileService(IConfiguration configuration)
         {
@@ -28,6 +34,9 @@ namespace Nuleep.Business.Services
             var blobUri = new Uri($"https://{_accountName}.blob.core.windows.net");
             var credential = new Azure.Storage.StorageSharedKeyCredential(_accountName, _accountKey);
             _blobServiceClient = new BlobServiceClient(blobUri, credential);
+
+            _db = new SqlConnection(configuration.GetConnectionString("DefaultConnection"));
+
         }
 
         public async Task<FileUploadResult> UploadAsync(string containerName, IFormFile file)
@@ -45,7 +54,7 @@ namespace Nuleep.Business.Services
             return new FileUploadResult
             {
                 Success = true,
-                Data = new ProjectImage
+                Data = new MediaImage
                 {
                     FileName = file.FileName,
                     BlobName = blobName,
@@ -54,10 +63,23 @@ namespace Nuleep.Business.Services
             };
         }
 
-        public async Task<DeleteResult> DeleteAsync(string containerName, string blobName)
+        public async Task<DeleteResult> DeleteAsync(string containerName, int profileId)
         {
+
+
+            var existingHeaderImage = await _db.QueryFirstOrDefaultAsync<MediaImage>(
+            "SELECT * FROM HeaderImages WHERE JobSeekerId in (Select Id from JobSeekers Where ProfileId = @ProfileId)", new { ProfileId = profileId });
+
+            if(existingHeaderImage == null)
+            {
+                return new DeleteResult
+                {
+                    Success = false,
+                    Error = "Blob does not exist"
+                };
+            }
             var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
-            var blobClient = containerClient.GetBlobClient(blobName);
+            var blobClient = containerClient.GetBlobClient(existingHeaderImage.BlobName);
 
             var exists = await blobClient.ExistsAsync();
             if (!exists)
@@ -68,8 +90,10 @@ namespace Nuleep.Business.Services
                     Error = "Blob does not exist"
                 };
             }
-
             await blobClient.DeleteAsync();
+
+            await _db.ExecuteAsync("DELETE FROM HeaderImages WHERE JobSeekerId in (Select Id from Profile Where ProfileId = @ProfileId", new { profileId });
+
             return new DeleteResult
             {
                 Success = true,
@@ -107,7 +131,7 @@ namespace Nuleep.Business.Services
     public class FileUploadResult
     {
         public bool Success { get; set; }
-        public ProjectImage Data { get; set; }
+        public MediaImage Data { get; set; }
     }
 
 

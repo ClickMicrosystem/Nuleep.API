@@ -10,6 +10,7 @@ namespace Nuleep.Business.Interface
     public interface IApplicationService
     {
         Task<dynamic> GetAllRecruiterApplications(string username);
+        Task<dynamic> GetAllJobSeekerApplications(string username);
         Task<dynamic> GetApplicationsByJob(int jobId);
         Task<dynamic> CreateApplication(int jobId, Application application);
     }

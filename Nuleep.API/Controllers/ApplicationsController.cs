@@ -9,7 +9,7 @@ using Nuleep.Models;
 namespace Nuleep.API.Controllers
 {
     [ApiController]
-    [Route("api/applications/recruiter")]
+    [Route("api/applications")]
     public class ApplicationsController : ControllerBase
     {
         private readonly IApplicationService _applicationService;
@@ -19,25 +19,46 @@ namespace Nuleep.API.Controllers
             _applicationService = applicationService;
         }
 
-        [HttpGet("all")]
+        [HttpGet("recruiter/all")]
         [Authorize]
         public async Task<IActionResult> GetAllRecruiterApplications()
         {
             int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
             
-            var recruterAppData = await _applicationService.GetAllRecruiterApplications(userId.ToString());
+            GenericClassResponse<dynamic> recruterAppData = await _applicationService.GetAllRecruiterApplications(userId.ToString());
 
-            if (recruterAppData.data == null) {
-                if (recruterAppData.code == 1) {
+            if (recruterAppData != null) {
+                if (recruterAppData.Code == 1) {
                     return NotFound(new { success = false, error = "Recruiter profile not found" });
                 }
-                else
+                else if (recruterAppData.Code == 2)
                 {
                     return NotFound(new { success = false, error = "Jobs for this profile not found." });
                 }                
             }
 
-            return Ok(new { success = true, data = recruterAppData });
+            return Ok(new { success = true, data = recruterAppData?.Data ?? Array.Empty<object>() });
+        }
+
+        [HttpGet("jobSeeker/all")]
+        [Authorize]
+        public async Task<IActionResult> GetAllJobSeekerApplications()
+        {
+            var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
+
+            GenericClassResponse<dynamic> recruterAppData = await _applicationService.GetAllJobSeekerApplications(userId.ToString());
+
+            if (recruterAppData != null) {
+                if (recruterAppData.Code == 1) {
+                    return NotFound(new { success = false, error = "Recruiter profile not found" });
+                }
+                else if (recruterAppData.Code == 2)
+                {
+                    return NotFound(new { success = false, error = "Jobs for this profile not found." });
+                }                
+            }
+
+            return Ok(new { success = true, data = recruterAppData?.Data ?? Array.Empty<object>() });
         }
 
         [HttpGet("job/{jobId}")]

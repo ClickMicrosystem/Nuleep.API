@@ -15,6 +15,8 @@ namespace Nuleep.Data.Interface
         Task<Recruiter> UpdateRecruiterProfile(CreateOrUpdateProfileRequest profileRequest);
         Task<ProfileResponse> UpdateProfile(CreateOrUpdateProfileRequest profileRequest);
         Task<dynamic> DeleteProfile(int UserId);
+        Task<dynamic> UpdateProfileImage(int profileId, MediaImage mediaImage);
+        Task<dynamic> UpdateHeaderImage(int profileId, MediaImage mediaImage);
 
     }
 }

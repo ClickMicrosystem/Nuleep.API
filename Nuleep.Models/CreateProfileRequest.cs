@@ -17,7 +17,7 @@ namespace Nuleep.Models
 
         // Shared
         public List<Chatroom>? ChatRooms { get; set; }
-        public List<ProfileImage>? ProfileImg { get; set; }
+        public List<MediaImage>? ProfileImg { get; set; }
 
         // ──────────────── JobSeeker-specific fields ────────────────
         public string? Bio { get; set; }
@@ -30,7 +30,7 @@ namespace Nuleep.Models
         public CareerJourney? CareerJourney { get; set; }
 
         public List<Award>? Awards { get; set; }
-        public List<ProfileImage>? ProjectImg { get; set; }
+        public List<MediaImage>? ProjectImg { get; set; }
 
         public List<Course>? RecentlyViewedCourses { get; set; }
         public List<Course>? SavedCourses { get; set; }
@@ -41,8 +41,8 @@ namespace Nuleep.Models
 
         public MyStory? MyStory { get; set; }
         public List<string>? Skills { get; set; }
-        public List<ProfileImage>? Interests { get; set; }
-        public List<ProfileImage>? Resume { get; set; }
+        public List<MediaImage>? Interests { get; set; }
+        public List<MediaImage>? Resume { get; set; }
 
         public List<string>? Classes { get; set; }
         public List<int>? SavedJobs { get; set; }

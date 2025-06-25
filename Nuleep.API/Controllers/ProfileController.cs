@@ -4,6 +4,7 @@ using System.Security.Claims;
 using System.Text;
 using Azure.Core;
 using Dapper;
+using DocumentFormat.OpenXml.Office2016.Excel;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using Microsoft.AspNetCore.Authorization;
@@ -28,16 +29,15 @@ namespace Nuleep.API.Controllers
     public partial class ProfilesController : ControllerBase
     {
         private readonly IProfileService _profileService;
-        //private readonly AzureFileService _azurefileService;
+        private readonly AzureFileService _azurefileService;
         private readonly IProfileRepository _profileRepository;
 
-        //public ProfilesController(IProfileService profileService, AzureFileService azurefileService, IProfileRepository profileRepository)
-        public ProfilesController(IProfileService profileService, IProfileRepository profileRepository)
+        public ProfilesController(IProfileService profileService, AzureFileService azurefileService, IProfileRepository profileRepository)
         {
             _profileService = profileService;
-            //_azurefileService = azurefileService;
+            _azurefileService = azurefileService;
             _profileRepository = profileRepository;
-        }
+        }        
 
         // @desc      Get your own profile. This will check your token for the profile id
         // @route     GET /api/profiles
@@ -234,38 +234,60 @@ namespace Nuleep.API.Controllers
         //    return StatusCode(500, new { success = false, error = "Resume upload failed" });
         //}
 
-        
-        
-        //[HttpPut("{profileId}/headerImage")]
-        //[Authorize]
-        //public async Task<IActionResult> EditHeaderImage([FromRoute] int profileId, IFormFile file)
-        //{
-        //    var jobSeeker = await _profileService.ViewProfile(profileId);
-        //    if (jobSeeker == null)
-        //        return BadRequest(new { error = "Profile does not exist!" });
+        public class MediaPayloadWithPId
+        {
+            [FromForm(Name = "pid")]
+            public int ProfileId { get; set; }
 
-        //    // Delete existing header image if present
-        //    if (jobSeeker.HeaderImage != null)
-        //    {
-        //        var deleteResult = await _azurefileService.DeleteAsync("headerimages", jobSeeker.HeaderImage.BlobName);
-        //        if (deleteResult)
-        //        {
-        //            jobSeeker.HeaderImage = null;
-        //            // await _profileRepository.UpdateHeaderImageAsync(profileId, null); // Remove reference from DB
-        //        }
-        //    }
+            [FromForm(Name = "file")]
+            public IFormFile File { get; set; }
+        }
 
-        //    // Upload new header image
-        //    var uploadResult = await _azurefileService.UploadAsync("headerimages", file);
-        //    if (uploadResult.Success)
-        //    {
-        //        jobSeeker.HeaderImage = uploadResult.Data;
+        [HttpPost("profileImg")]
+        [Authorize]
+        public async Task<IActionResult> EditProfileImage(MediaPayloadWithPId mediaPayloadWithPId)
+        {
+            var profile = await _profileService.ViewProfile(mediaPayloadWithPId.ProfileId);
+            if (profile == null)
+                return BadRequest(new { error = "Profile does not exist!" });
 
-        //        //await _profileRepository.UpdateHeaderImageAsync(profileId, jobSeeker.HeaderImage);
-        //    }
+            // Upload new header image
+            var uploadResult = await _azurefileService.UploadAsync("profileimages", mediaPayloadWithPId.File);
+            var updatedProfile = "";
+            if (uploadResult.Success)
+            {
+                updatedProfile = await _profileService.UpdateProfileImage(mediaPayloadWithPId.ProfileId, uploadResult.Data);
+            }
 
-        //    return Ok(new { success = true, data = jobSeeker });
-        //}
+            //var updatedProfile = await _profileService.ViewProfile(mediaPayloadWithPId.ProfileId);
+            return Ok(new { success = true, data = updatedProfile });
+        }
+
+        [HttpPost("headerImg")]
+        [Authorize]
+        public async Task<IActionResult> EditHeaderImage(MediaPayloadWithPId mediaPayloadWithPId)
+        {
+            var profile = await _profileService.ViewProfile(mediaPayloadWithPId.ProfileId);
+            if (profile == null)
+                return BadRequest(new { error = "Profile does not exist!" });
+
+
+            // Upload new header image
+            var uploadResult = await _azurefileService.DeleteAsync("headerimages", mediaPayloadWithPId.ProfileId);
+
+            // Upload new image
+            var newHeaderImage = await _azurefileService.UploadAsync("headerimages", mediaPayloadWithPId.File);
+            if (newHeaderImage == null)
+                return StatusCode(500, new { error = "Upload failed" });
+
+            var updatedProfile = "";
+            if (newHeaderImage.Success)
+            {
+                updatedProfile = await _profileService.UpdateHeaderImage(mediaPayloadWithPId.ProfileId, newHeaderImage.Data);
+            }
+
+            return Ok(new { success = true, data = updatedProfile });
+        }
 
 
         //[HttpPost("fileToText")]

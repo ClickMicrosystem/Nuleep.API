@@ -68,5 +68,15 @@ namespace Nuleep.Business.Services
         {
             return await _profileRepository.DeleteProfile(UserId);
         }
+
+        public async Task<dynamic> UpdateProfileImage(int profileId, MediaImage mediaImage)
+        {
+            return await _profileRepository.UpdateProfileImage(profileId, mediaImage);
+        }
+
+        public async Task<dynamic> UpdateHeaderImage(int profileId, MediaImage mediaImage)
+        {
+            return await _profileRepository.UpdateHeaderImage(profileId, mediaImage);
+        }
     }
 }
