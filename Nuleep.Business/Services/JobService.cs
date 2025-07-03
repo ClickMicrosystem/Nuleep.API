@@ -14,7 +14,7 @@ namespace Nuleep.Business.Services
         {
             _jobRepository = jobRepository;
         }
-        public async Task<dynamic> CreateJob(int userId, Job job)
+        public async Task<ResponeModel> CreateJob(int userId, Job job)
         {
             return await _jobRepository.CreateJob(userId, job);
         }
@@ -26,9 +26,9 @@ namespace Nuleep.Business.Services
         {
             return await _jobRepository.GetJobById(id);
         }
-        public async Task<dynamic> GetAllRecruiterJobs()
+        public async Task<ResponeModel> GetAllRecruiterJobs(int userId)
         {
-            return await _jobRepository.GetAllRecruiterJobs();
+            return await _jobRepository.GetAllRecruiterJobs(userId);
         }
     }
 }

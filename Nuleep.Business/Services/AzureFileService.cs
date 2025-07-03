@@ -101,14 +101,14 @@ namespace Nuleep.Business.Services
             };
         }
 
-        public async Task<List<ProjectImage>> FindAsync(string containerName)
+        public async Task<List<MediaImage>> FindAsync(string containerName)
         {
             var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
-            var results = new List<ProjectImage>();
+            var results = new List<MediaImage>();
 
             await foreach (var blob in containerClient.GetBlobsAsync())
             {
-                results.Add(new ProjectImage
+                results.Add(new MediaImage
                 {
                     FileName = Path.GetFileNameWithoutExtension(blob.Name).Replace("-", " "),
                     BlobName = blob.Name,

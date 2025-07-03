@@ -206,6 +206,49 @@ namespace Nuleep.Data.Repository
                     Classes = System.String.Join(", ", profileRequest.Classes)
                 });
             }
+            else
+            {
+                profileId = existingProfile.Id;
+                if (profileRequest.FirstName != null && profileRequest.StreetAddress != null)
+                {
+                    string updateProfileQuery = @"
+                    UPDATE Profile
+                    SET FirstName = @FirstName,
+                        LastName = @LastName,
+                        JobTitle = @JobTitle
+                    WHERE Id = @ProfileId;";
+
+
+
+                    string updateJobSeekersQuery = @"
+                    UPDATE JobSeekers
+                    SET Bio = @Bio,
+                        StreetAddress = @StreetAddress
+                    WHERE ProfileId = @ProfileId;";
+
+                    try
+                    {
+                        await _db.ExecuteAsync(updateProfileQuery, new
+                        {
+                            ProfileId = existingProfile.Id,
+                            profileRequest.FirstName,
+                            profileRequest.LastName,
+                            profileRequest.JobTitle,
+                        });
+
+                        await _db.ExecuteAsync(updateJobSeekersQuery, new
+                        {
+                            ProfileId = existingProfile.Id,
+                            profileRequest.Bio,
+                            profileRequest.StreetAddress
+                        });
+                    }
+                    catch (Exception e)
+                    {
+
+                    }
+                }
+            }
 
             if (profileRequest.Education?.Count() > 0)
             {
@@ -517,6 +560,7 @@ namespace Nuleep.Data.Repository
 
                 }
             }
+            
             return await GetRecruiterByProfileId(existingProfile.Id);
         
         }
@@ -735,8 +779,9 @@ namespace Nuleep.Data.Repository
                 LastName = profile.LastName,
                 FirstName = profile.FirstName,
                 JobTitle = profile.JobTitle,
-                StreetAddress = jobSeekerData.StreetAddress
-            };
+                StreetAddress = jobSeekerData.StreetAddress,
+                    Type = profile.Type
+                };
 
             }
             catch(Exception e)
@@ -791,7 +836,7 @@ namespace Nuleep.Data.Repository
                     Phone = profile.Phone,
                     About = recruiterData.About,
                     Bio = recruiterData.Bio,
-                    type=profile.type,
+                    Type=profile.Type,
                     StreetAddress = recruiterData.StreetAddress,
                     Title = recruiterData.Title,
                     OrganizationRole = recruiterData.OrganizationRole,

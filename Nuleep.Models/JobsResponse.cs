@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 
 namespace Nuleep.Models
 {
-    public class Job
+    public class JobsResponse
     {
         public int Id { get; set; }
         public string PositionTitle { get; set; } = string.Empty;
@@ -19,14 +18,13 @@ namespace Nuleep.Models
         public required List<string> SkillKeywords { get; set; }
         public string? JobType { get; set; }
         public string? SalaryType { get; set; }
-        public string? Salary { get; set; }
+        public int? Salary { get; set; }
         public string? Remote { get; set; }
         public string? RequisitionNumber { get; set; }
         public DateTime? PostingDate { get; set; }
         public DateTime? ClosingDate { get; set; }
 
-        [JsonPropertyName("applications")]
-        public List<Application>? Application { get; set; } = new();
+        public List<Application>? Application { get; set; }
         public string? CompanyContact { get; set; }
         public string? CompanyEmail { get; set; }
 

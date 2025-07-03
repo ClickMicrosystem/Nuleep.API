@@ -10,9 +10,9 @@ namespace Nuleep.Business.Interface
 {
     public interface IJobService
     {
-        Task<dynamic> CreateJob(int userId, Job job);
+        Task<ResponeModel> CreateJob(int userId, Job job);
         Task<dynamic> UpdateJob(int userId, Job job);
         Task<dynamic> GetJobById(int id);
-        Task<dynamic> GetAllRecruiterJobs();
+        Task<ResponeModel> GetAllRecruiterJobs(int userId);
     }
 }

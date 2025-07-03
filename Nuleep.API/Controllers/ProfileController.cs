@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System.ComponentModel.DataAnnotations;
+using System.Data;
 using System.Net;
 using System.Security.Claims;
 using System.Text;
@@ -75,7 +76,6 @@ namespace Nuleep.API.Controllers
         // @desc      Create a new profile
         // @route     POST /api/profiles
         // @access    Private
-
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> CreateProfile([FromBody] CreateOrUpdateProfileRequest profileRequest)
@@ -234,14 +234,7 @@ namespace Nuleep.API.Controllers
         //    return StatusCode(500, new { success = false, error = "Resume upload failed" });
         //}
 
-        public class MediaPayloadWithPId
-        {
-            [FromForm(Name = "pid")]
-            public int ProfileId { get; set; }
-
-            [FromForm(Name = "file")]
-            public IFormFile File { get; set; }
-        }
+        
 
         [HttpPost("profileImg")]
         [Authorize]
@@ -290,43 +283,43 @@ namespace Nuleep.API.Controllers
         }
 
 
-        //[HttpPost("fileToText")]
-        //[Authorize]
-        //public async Task<IActionResult> FileToText([FromForm] IFormFile file)
-        //{
-        //    await Task.Delay(1);
-        //    if (file == null || file.Length == 0)
-        //        return BadRequest(new { error = "No file uploaded" });
+        [HttpPost("fileTotext")]
+        [Authorize]
+        public async Task<IActionResult> FileToText(IFormFile file)
+        {
+            await Task.Delay(1);
+            if (file == null || file.Length == 0)
+                return BadRequest(new { error = "No file uploaded" });
 
-        //    var extension = Path.GetExtension(file.FileName).ToLower();
+            var extension = Path.GetExtension(file.FileName).ToLower();
 
-        //    if (extension != ".pdf" && extension != ".docx")
-        //    {
-        //        return BadRequest(new { error = "Only .docx and .pdf format allowed!" });
-        //    }
+            if (extension != ".pdf" && extension != ".docx")
+            {
+                return BadRequest(new { error = "Only .docx and .pdf format allowed!" });
+            }
 
-        //    string extractedText;
+            string extractedText;
 
-        //    using var stream = file.OpenReadStream();
-        //    if (extension == ".pdf")
-        //    {
-        //        extractedText = ExtractTextFromPdf(stream);
-        //    }
-        //    else if (extension == ".docx")
-        //    {
-        //        extractedText = ExtractTextFromDocx(stream);
-        //    }
-        //    else
-        //    {
-        //        return BadRequest(new { error = "Unsupported file type" });
-        //    }
+            using var stream = file.OpenReadStream();
+            if (extension == ".pdf")
+            {
+                extractedText = ExtractTextFromPdf(stream);
+            }
+            else if (extension == ".docx")
+            {
+                extractedText = ExtractTextFromDocx(stream);
+            }
+            else
+            {
+                return BadRequest(new { error = "Unsupported file type" });
+            }
 
-        //    return Ok(new
-        //    {
-        //        success = true,
-        //        data = extractedText
-        //    });
-        //}
+            return Ok(new
+            {
+                success = true,
+                data = extractedText
+            });
+        }
 
         private string ExtractTextFromPdf(Stream stream)
         {
@@ -351,7 +344,7 @@ namespace Nuleep.API.Controllers
             return textBuilder.ToString();
         }
 
-        [HttpPost("findimg")]
+        [HttpPost("images")]
         [Authorize]
         public async Task<IActionResult> FindImg([FromBody] FindImgRequest request)
         {
@@ -364,13 +357,12 @@ namespace Nuleep.API.Controllers
             if (jobSeeker == null)
                 return NotFound(new { error = "Profile not found" });
 
-            //var result = await _azurefileService.FindAsync(request.ContainerName);
+            var result = await _azurefileService.FindAsync(request.ContainerName);
 
             return Ok(new
             {
                 success = true,
-                jobSeeker
-                //result
+                result
             });
         }
 
@@ -418,7 +410,22 @@ namespace Nuleep.API.Controllers
         //        data = jobSeeker
         //    });
         //}
-    
+
+        public class MediaPayloadWithPId
+        {
+            [FromForm(Name = "pid")]
+            public int ProfileId { get; set; }
+
+            [FromForm(Name = "file")]
+            public IFormFile File { get; set; }
+        }
+
+        public class FilePayload
+        {
+            [Required]
+            [FromForm(Name = "file")]
+            public IFormFile File { get; set; }
+        }
     }
 
     public class FindImgRequest

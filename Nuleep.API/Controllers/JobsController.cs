@@ -27,16 +27,15 @@ namespace Nuleep.API.Controllers
             _db = new SqlConnection(config.GetConnectionString("DefaultConnection"));
         }
 
-        [HttpGet]
+        [HttpPost("create")]
         public async Task<IActionResult> CreateJob(Job job)
         {
-            var userId = int.Parse(User.FindFirst("id")?.Value ?? "0");
-
-            var user = await _jobService.CreateJob(userId, job);
-            if (user == null)
+            var userId = int.Parse(User.Claims.ToList()[0].Value);
+            var createdJob = await _jobService.CreateJob(userId, job);
+            if (createdJob == null || createdJob.code == 1)
                 return NotFound();
 
-            return Ok(new { success = true, data = user });
+            return Ok(new { success = true, data = createdJob.data });
         }
 
         [HttpPost]
@@ -138,13 +137,19 @@ namespace Nuleep.API.Controllers
         [HttpGet("recruiter/all")]
         public async Task<IActionResult> GetAllRecruiterJobs()
         {
+            var userId = int.Parse(User.Claims.ToList()[0].Value);
 
-            var allRecruiterJobs = await _jobService.GetAllRecruiterJobs();
+            ResponeModel allRecruiterJobs = await _jobService.GetAllRecruiterJobs(userId);
+
+            if(allRecruiterJobs.code == 1)
+            {
+                return NotFound(new { error = "Recruiter profile not found" });
+            }
 
             return Ok(new
             {
                 success = true,
-                data = allRecruiterJobs.Values
+                data = allRecruiterJobs.data
             });
         }
 

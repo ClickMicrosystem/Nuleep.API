@@ -17,7 +17,7 @@ namespace Nuleep.Models
         public string FullName => $"{FirstName} {LastName}";
         public string? Email { get; set; }
         public string? JobTitle { get; set; }
-        public string? type { get; set; }
+        public string? Type { get; set; }
         public bool? IsDelete { get; set; } = false;
         public int? UserId { get; set; }
 

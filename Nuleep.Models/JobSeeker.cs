@@ -17,8 +17,11 @@ namespace Nuleep.Models
         public MyStory? MyStory { get; set; }
 
         public bool? Remote { get; set; }
+
+        [JsonPropertyName("skill")]
         public string Skills { get; set; }
 
+        [JsonPropertyName("classe")]
         public string Classes { get; set; }
 
         public List<Job> SavedJobs { get; set; } = new();
