@@ -63,6 +63,29 @@ namespace Nuleep.Business.Services
             };
         }
 
+        public async Task<DeleteResult> DeleteResumeAsync(string containerName, string blobName)
+        {
+            var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
+            var blobClient = containerClient.GetBlobClient(blobName);
+
+            if (blobClient.Exists())
+            {
+                await blobClient.DeleteAsync();
+                return new DeleteResult
+                {
+                    Success = true,
+                    Deleted = true
+                };
+            }
+
+            return new DeleteResult
+            {
+                Success = false,
+                Deleted = false
+            };
+        }
+        
+
         public async Task<DeleteResult> DeleteAsync(string containerName, int profileId)
         {
 
@@ -119,13 +142,6 @@ namespace Nuleep.Business.Services
             return results;
         }
 
-    }
-
-    public class DeleteResult
-    {
-        public bool Success { get; set; }
-        public bool Deleted { get; set; }
-        public string? Error { get; set; }
     }
 
     public class FileUploadResult

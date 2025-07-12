@@ -186,56 +186,6 @@ namespace Nuleep.API.Controllers
             return Ok(new { success = true, data = new { } });
         }
 
-        //[HttpPost("api/uploadResume")]
-        //[Authorize]
-        //public async Task<IActionResult> UploadResume([FromForm] IFormFile file)
-        //{
-        //    var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
-        //    var jobSeeker = await _profileService.GetProfileByUsernameAsync(userId);
-
-        //    if (jobSeeker == null)
-        //        return NotFound(new { error = "Profile not found" });
-
-        //    var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".pages", ".txt" };
-        //    var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
-
-        //    if (!allowedExtensions.Contains(ext))
-        //    {
-        //        return StatusCode(405, new
-        //        {
-        //            success = false,
-        //            data = new { error = "File type must be .pdf, .doc, .txt, .pages" }
-        //        });
-        //    }
-
-        //    // Delete old resume if exists
-        //    if (!string.IsNullOrEmpty(jobSeeker.ResumeBlobName))
-        //    {
-        //        var deleted = await _azurefileService.DeleteAsync("resumes", jobSeeker.ResumeBlobName);
-        //        if (deleted)
-        //        {
-        //            await _profileService.RemoveResumeReferenceAsync(jobSeeker.Id);
-        //        }
-        //    }
-
-        //    // Upload new resume
-        //    var uploadResult = await _azurefileService.UploadAsync("resumes", file);
-        //    if (uploadResult.Success)
-        //    {
-        //        await _profileService.SaveResumeAsync(jobSeeker.Id, file.FileName, uploadResult.Data.BlobName, uploadResult.Data.FullUrl);
-
-        //        return Ok(new
-        //        {
-        //            success = true,
-        //            data = await _profileService.GetProfileByUsernameAsync(userId)
-        //        });
-        //    }
-
-        //    return StatusCode(500, new { success = false, error = "Resume upload failed" });
-        //}
-
-        
-
         [HttpPost("profileImg")]
         [Authorize]
         public async Task<IActionResult> EditProfileImage(MediaPayloadWithPId mediaPayloadWithPId)
@@ -280,6 +230,77 @@ namespace Nuleep.API.Controllers
             }
 
             return Ok(new { success = true, data = updatedProfile });
+        }
+
+        [HttpPost("resume")]
+        [Authorize]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadResume([FromForm] FilePayload dto)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var jobSeeker = await _profileRepository.GetJobSeekerProfileByUserId(userId.ToString());
+
+            if (jobSeeker == null)
+                return NotFound(new { error = "Profile not found" });
+
+            var allowedExtensions = new[] { ".pdf", ".doc", ".docx", ".txt", ".pages" };
+            var ext = Path.GetExtension(dto.File.FileName).ToLower();
+
+            if (!allowedExtensions.Contains(ext))
+            {
+                return StatusCode(405, new
+                {
+                    success = false,
+                    data = new { error = "File type must be .pdf, .doc, .txt and .pages" }
+                });
+            }
+
+            // Delete previous resume (if any)
+            if (jobSeeker.Resume?.Count > 0)
+            {
+                var oldFile = jobSeeker.Resume[0];
+                DeleteResult deleted = await _azurefileService.DeleteResumeAsync("resumes", oldFile.BlobName);
+                if (deleted.Deleted)
+                {
+                    jobSeeker.Resume = jobSeeker.Resume.Where(r => r.BlobName != oldFile.BlobName).ToList();
+                    await _profileRepository.DeleteResumeAsync(oldFile);
+                }
+            }
+
+            // Upload new resume
+            var uploadResult = await _azurefileService.UploadAsync("resumes", dto.File);
+            if (uploadResult.Success)
+            {
+                MediaImage mediaImage = new MediaImage();
+                mediaImage.ProfileId = jobSeeker.Id;
+                mediaImage.BlobName = uploadResult.Data.BlobName;
+                mediaImage.FileName = uploadResult.Data.FileName;
+                mediaImage.FullUrl = uploadResult.Data.FullUrl;
+                jobSeeker = await _profileRepository.UpdateResumeAsync(jobSeeker.Id ,mediaImage);
+            }
+
+            return Ok(new { success = true, data = jobSeeker });
+        }
+
+        [HttpDelete("resume")]
+        [Authorize]
+        public async Task<IActionResult> DeleteResume([FromBody] ResumeDeleteDto dto)
+        {
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            var jobSeeker = await _profileRepository.GetJobSeekerProfileByUserId(userId.ToString());
+
+            if (jobSeeker == null)
+                return NotFound(new { error = "Profile not found" });
+
+            var deleted = await _azurefileService.DeleteResumeAsync("resumes", dto.File);
+            JobSeeker updatedJobseeker = new JobSeeker();
+            if (deleted.Deleted && jobSeeker.Resume != null)
+            {
+                jobSeeker.Resume = jobSeeker.Resume.Where(r => r.BlobName != dto.File).ToList();
+                updatedJobseeker = await _profileRepository.DeleteResumeAsync(jobSeeker.Resume[0]);
+            }
+
+            return Ok(new { success = true, data = updatedJobseeker });
         }
 
 
@@ -366,51 +387,6 @@ namespace Nuleep.API.Controllers
             });
         }
 
-
-        //[HttpPost("projectImageUpload")]
-        //[Authorize]
-        //public async Task<IActionResult> ProjectImgUpload([FromForm] IFormFile file,[FromForm] int? removeName)
-        //{
-        //    var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-        //    var jobSeeker = await _profileRepository.GetExistingProfileByUserAsync(userId.ToString());
-
-        //    if (jobSeeker == null)
-        //        return NotFound(new { error = "Profile not found" });
-
-        //    var uploadResult = await _azurefileService.UploadAsync("projectimg", file);
-
-        //    if (!uploadResult.Success)
-        //        return BadRequest(new { error = "File upload failed" });
-
-        //    var uploadedData = uploadResult.Data;
-
-        //    // Deserialize existing project images (assuming it's stored as JSON or List<BlobResultDto>)
-        //    var projectImages = jobSeeker.ProjectImage ?? new List<ProjectImage>();
-
-        //    if (removeName.HasValue && removeName.Value >= 0 && removeName.Value < projectImages.Count)
-        //    {
-        //        var toRemove = projectImages[removeName.Value];
-
-        //        await _azurefileService.DeleteAsync("projectimg", toRemove.BlobName);
-
-        //        projectImages[removeName.Value] = uploadedData;
-        //    }
-        //    else
-        //    {
-        //        projectImages.Add(uploadedData);
-        //    }
-
-        //    jobSeeker.ProjectImage = projectImages;
-
-        //    //await _profileRepository.Upl(userId, projectImages);
-
-        //    return Ok(new
-        //    {
-        //        success = true,
-        //        data = jobSeeker
-        //    });
-        //}
-
         public class MediaPayloadWithPId
         {
             [FromForm(Name = "pid")]
@@ -419,17 +395,23 @@ namespace Nuleep.API.Controllers
             [FromForm(Name = "file")]
             public IFormFile File { get; set; }
         }
-
-        public class FilePayload
-        {
-            [Required]
-            [FromForm(Name = "file")]
-            public IFormFile File { get; set; }
-        }
+        
     }
 
     public class FindImgRequest
     {
         public string? ContainerName { get; set; }
     }
+
+    public class FilePayload
+    {
+        [FromForm(Name = "file")]
+        public IFormFile File { get; set; }
+    }
+
+    public class ResumeDeleteDto
+    {
+        public string File { get; set; } = "";
+    }
+
 }

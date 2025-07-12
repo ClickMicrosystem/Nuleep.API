@@ -11,5 +11,6 @@ namespace Nuleep.Business.Interface
     public interface IOrganizationService
     {
         Task<dynamic> GetEmployeeOrganization(int page, int limit);
+        Task<Organization> GetByOrgCode(string orgCode);
     }
 }

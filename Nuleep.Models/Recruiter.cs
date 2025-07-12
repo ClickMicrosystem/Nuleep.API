@@ -18,6 +18,7 @@ namespace Nuleep.Models
 
         public string Title { get; set; }
 
+        public int? OrganizationId { get; set; }
         public Organization Organization { get; set; }
 
         public string OrganizationRole { get; set; } = "unapproved";

@@ -33,6 +33,7 @@ namespace Nuleep.Models
         public Organization? Organization { get; set; }
         public Recruiter? Recruiter { get; set; }
         public int? RecruiterId { get; set; }
+        public int? OrganizationId { get; set; }
         public string? Program { get; set; }
         public string? ExperienceLevel { get; set; }
         public string? NuleepID { get; set; }

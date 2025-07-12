@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Nuleep.Business.Interface;
+using Nuleep.Models;
 using Nuleep.Models.Blogs;
 
 namespace Nuleep.API.Controllers
@@ -18,6 +19,19 @@ namespace Nuleep.API.Controllers
         {
             _organizationService = organizationService;
         }
+
+        [HttpPost("organization/validate")]
+        [Authorize]
+        public async Task<IActionResult> ValidateOrgCode([FromBody] Organization request)
+        {
+            var organization = await _organizationService.GetByOrgCode(request.OrgCode);
+
+            if (organization == null)
+                return NotFound(new { error = "Organization not found!" });
+
+            return Ok(new { success = true });
+        }
+
 
         // @desc      Get all information for employee organization
         // @route     GET /api/organizations/

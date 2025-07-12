@@ -24,6 +24,11 @@ namespace Nuleep.Data.Repository
             //return int.Parse(User.FindFirst("id").Value); // assuming JWT has user id in claim "id"
         }
 
+        public async Task<Organization?> GetByOrgCode(string orgCode)
+        {
+            var sql = "SELECT * FROM Organizations WHERE OrgCode = @OrgCode";
+            return await _db.QueryFirstOrDefaultAsync<Organization>(sql, new { OrgCode = orgCode });
+        }
 
         public async Task<dynamic> GetEmployeeOrganization(int page, int limit)
         {

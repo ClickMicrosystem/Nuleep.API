@@ -122,7 +122,14 @@ namespace Nuleep.Data.Repository
             var sql = "SELECT * FROM Profile WHERE UserId = @UserRefId";
             return await _db.QueryFirstOrDefaultAsync<Profile>(sql, new { UserRefId = userId });
         }
-        
+
+        public async Task<JobSeeker> GetJobSeekerProfileByUserId(string userId)
+        {
+            var sql = "SELECT Id FROM Profile WHERE UserId = @UserRefId";
+            int profileId = await _db.QueryFirstOrDefaultAsync<int>(sql, new { UserRefId = userId });
+            return await GetJobSeekerByProfileId(profileId);
+        }
+
         private dynamic GetCreatedProfileData(string profileId)
         {
             var query = @"SELECT Id, FirstName, LastName, FullName, JobTitle, Email FROM Profile WHERE UserId = @UserId;
@@ -780,7 +787,8 @@ namespace Nuleep.Data.Repository
                 FirstName = profile.FirstName,
                 JobTitle = profile.JobTitle,
                 StreetAddress = jobSeekerData.StreetAddress,
-                    Type = profile.Type
+                Type = profile.Type,
+                JobSeekerId = jobSeekerData.JobSeekerId
                 };
 
             }
@@ -1076,6 +1084,23 @@ namespace Nuleep.Data.Repository
             return responeModel;
         }
 
+        public async Task<JobSeeker> DeleteResumeAsync(MediaImage mediaImage)
+        {
+            await _db.ExecuteAsync(
+                "DELETE FROM Resumes WHERE JobSeekerId = @JobSeekerId",
+                new { JobSeekerId = mediaImage.ProfileId });
+
+            return await GetJobSeekerByProfileId(mediaImage.ProfileId??0);
+        }
+
+        public async Task<JobSeeker> UpdateResumeAsync(int pId, MediaImage mediaImage)
+        {
+            await _db.ExecuteAsync(
+                "DELETE FROM Resumes WHERE JobSeekerId = @JobSeekerId",
+                new { JobSeekerId = mediaImage.ProfileId });
+
+            return await GetJobSeekerByProfileId(pId);
+        }
         public async Task<dynamic> DeleteProfile(int UserId)
         {
             var profile = await _db.QueryFirstOrDefaultAsync<Profile>(

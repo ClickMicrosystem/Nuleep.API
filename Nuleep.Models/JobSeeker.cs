@@ -11,6 +11,7 @@ namespace Nuleep.Models
 {
     public class JobSeeker : Profile
     {
+        public int JobSeekerId { get; set; }
         public string Bio { get; set; }
         public MediaImage HeaderImage { get; set; }
         public CareerJourney? CareerJourney { get; set; }

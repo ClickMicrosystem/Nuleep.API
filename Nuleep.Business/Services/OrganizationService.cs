@@ -19,5 +19,9 @@ namespace Nuleep.Business.Services
         {
             return await _organizationRepository.GetEmployeeOrganization(page, limit);
         }
+        public async Task<Organization> GetByOrgCode(string orgCode)
+        {
+            return await _organizationRepository.GetByOrgCode(orgCode);
+        }
     }
 }
