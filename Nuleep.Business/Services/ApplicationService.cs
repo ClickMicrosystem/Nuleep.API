@@ -1,6 +1,7 @@
 ﻿using Nuleep.Business.Interface;
 using Nuleep.Data.Interface;
 using Nuleep.Models;
+using Nuleep.Models.Response;
 
 namespace Nuleep.Business.Services
 {
@@ -8,10 +9,12 @@ namespace Nuleep.Business.Services
     {
         
         private readonly IApplicationRepository _applicationRepository;
+        private readonly IProfileRepository _profileRepository;
 
-        public ApplicationService(IApplicationRepository applicationRepository)
+        public ApplicationService(IApplicationRepository applicationRepository, IProfileRepository profileRepository)
         {
             _applicationRepository = applicationRepository;
+            _profileRepository = profileRepository;
         }
         
         public async Task<dynamic> GetAllRecruiterApplications(string username)
@@ -33,6 +36,28 @@ namespace Nuleep.Business.Services
         {
             return await _applicationRepository.GetApplicationsByJob(jobId);
         }
-        
+
+        public async Task<ApplicationDetail?> GetApplicationById(int applicationId, int userId)
+        {
+            var app = await _applicationRepository.GetApplicationById(applicationId);
+            if (app == null) return null;
+
+            var recruiter = await _profileRepository.GetRecruiterProfileByUserId(userId.ToString());
+            var jobSeeker = await _profileRepository.GetJobSeekerProfileByUserId(userId.ToString());
+
+            if (recruiter == null && jobSeeker == null)
+                return null;
+
+            // Authorization check
+            if (jobSeeker != null && app.Profile.Id != jobSeeker.Id)
+                return null;
+
+            if (recruiter != null && app.Job.OrganizationId != recruiter.OrganizationId)
+                return null;
+
+            return app;
+        }
+
+
     }
 }

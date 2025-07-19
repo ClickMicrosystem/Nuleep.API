@@ -5,6 +5,7 @@ using System.Data;
 using Dapper;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using Nuleep.Data.Interface;
+using Nuleep.Models.Response;
 
 namespace Nuleep.Data.Repository
 {
@@ -65,8 +66,6 @@ namespace Nuleep.Data.Repository
             return GenericClassResponse<dynamic>.Create(applications, 0);
 
         }
-        
-
         public async Task<dynamic> GetAllJobSeekerApplications(string userId)
         {
             var profileId = await _db.QueryFirstOrDefaultAsync<int>(
@@ -120,12 +119,6 @@ namespace Nuleep.Data.Repository
             
 
             return GenericClassResponse<dynamic>.Create(appDictionary.Values, 0);
-        }
-
-        private int GetLoggedInUserId()
-        {
-            return 2;
-            //return int.Parse(User.FindFirst("id").Value); // assuming JWT has user id in claim "id"
         }
 
         public async Task<dynamic> GetApplicationsByJob(int jobId)
@@ -228,6 +221,27 @@ namespace Nuleep.Data.Repository
             var newApplication = await _db.QuerySingleAsync<Application>(sqlInsert, parameters);
 
             return new { data = newApplication, code = 0 };
+        }
+
+        public async Task<ApplicationDetail?> GetApplicationWithJobAndProfileAsync(int applicationId)
+        {
+            using var multi = await _db.QueryMultipleAsync(@"
+                                SELECT * FROM Applications WHERE Id = @Id;
+                                SELECT p.* FROM Profiles p
+                                    INNER JOIN Applications a ON a.ProfileId = p.Id
+                                    WHERE a.Id = @Id;
+                                SELECT j.* FROM Jobs j
+                                    INNER JOIN Applications a ON a.JobId = j.Id
+                                    WHERE a.Id = @Id;",
+                                        new { Id = applicationId });
+
+            var application = await multi.ReadFirstOrDefaultAsync<ApplicationDetail>();
+            if (application == null) return null;
+
+            application.Profile = await multi.ReadFirstOrDefaultAsync<Profile>();
+            application.Job = await multi.ReadFirstOrDefaultAsync<Job>();
+
+            return application;
         }
 
     }

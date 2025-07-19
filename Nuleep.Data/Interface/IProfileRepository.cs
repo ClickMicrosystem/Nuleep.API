@@ -20,6 +20,7 @@ namespace Nuleep.Data.Interface
         Task<JobSeeker> UpdateResumeAsync(int pId, MediaImage mediaImage);
         Task<dynamic> UpdateProfileImage(int profileId, MediaImage mediaImage);
         Task<dynamic> UpdateHeaderImage(int profileId, MediaImage mediaImage);
+        Task<Recruiter> GetRecruiterProfileByUserId(string userId);
 
     }
 }

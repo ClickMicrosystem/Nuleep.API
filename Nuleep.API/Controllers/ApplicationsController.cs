@@ -103,6 +103,17 @@ namespace Nuleep.API.Controllers
             return Ok(new { success = true, data = newApplication });
         }
 
+        [HttpGet("{applicationId}")]
+        public async Task<IActionResult> GetApplication(int applicationId)
+        {
+            var UserId = int.Parse(User.Claims.ToList()[0].Value);
+
+            var result = await _applicationService.GetApplicationByIdAsync(applicationId, userId);
+            if (result == null)
+                return NotFound(new { error = "Profile not found or unauthorized" });
+
+            return Ok(new { success = true, data = result });
+        }
 
     }
 }

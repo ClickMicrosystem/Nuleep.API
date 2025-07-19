@@ -5,6 +5,7 @@ using Nuleep.Business.Services;
 using Nuleep.Data;
 using Nuleep.Data.Interface;
 using Nuleep.Data.Repository;
+using Stripe;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,6 +21,7 @@ builder.Services.AddSwaggerGen();
 
 //var key = Encoding.ASCII.GetBytes("NuleepAPIKey");
 var key = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]);
+StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
 
 builder.Services.AddAuthentication(options =>
@@ -94,6 +96,12 @@ builder.Services.AddScoped<IJobService, JobService>();
 
 builder.Services.AddScoped<INotificationsRepository, NotificationsRepository>();
 builder.Services.AddScoped<INotificationsService, NotificationsService>();
+
+builder.Services.AddScoped<IAdminRepository, AdminRepository>();
+builder.Services.AddScoped<IAdminService, AdminService>();
+
+builder.Services.AddScoped<IEventRepository, EventRepository>();
+builder.Services.AddScoped<IEventService, EventsService>();
 
 var app = builder.Build();
 

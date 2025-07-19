@@ -130,6 +130,13 @@ namespace Nuleep.Data.Repository
             return await GetJobSeekerByProfileId(profileId);
         }
 
+        public async Task<Recruiter> GetRecruiterProfileByUserId(string userId)
+        {
+            var sql = "SELECT Id FROM Profile WHERE UserId = @UserRefId and Type = @Type";
+            int profileId = await _db.QueryFirstOrDefaultAsync<int>(sql, new { UserRefId = userId, Type = "recruiter" });
+            return await GetRecruiterByProfileId(profileId);
+        }
+
         private dynamic GetCreatedProfileData(string profileId)
         {
             var query = @"SELECT Id, FirstName, LastName, FullName, JobTitle, Email FROM Profile WHERE UserId = @UserId;
