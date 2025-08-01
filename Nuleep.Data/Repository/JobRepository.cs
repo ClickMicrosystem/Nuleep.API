@@ -9,6 +9,7 @@ using Nuleep.Data.Interface;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Bibliography;
+using Nuleep.Models.Response;
 
 namespace Nuleep.Data.Repository
 {
@@ -186,7 +187,7 @@ namespace Nuleep.Data.Repository
                             WHERE j.Id = @Id;
                         ";
 
-            var result = await _db.QueryAsync<Job, Organization, Recruiter, Job>(
+            var result = await _db.QueryAsync<JobsResponse, Organization, Recruiter, JobsResponse>(
                 sql,
                 (job, organization, recruiter) =>
                 {
@@ -230,16 +231,16 @@ namespace Nuleep.Data.Repository
                         WHERE j.RecruiterId = @RecruiterId AND j.ClosingDate >= GETUTCDATE()
                         ORDER BY j.ClosingDate DESC";
 
-            var jobDictionary = new Dictionary<int, Job>();
+            var jobDictionary = new Dictionary<int, JobsResponse>();
 
-            var jobs = await _db.QueryAsync<Job, Organization, Application, Profile, Job>(
+            var jobs = await _db.QueryAsync<JobsResponse, Organization, ApplicationResponse, Profile, JobsResponse>(
                 sql,
                 (job, org, app, profile) =>
                 {
                     if (!jobDictionary.TryGetValue(job.Id, out var jobEntry))
                     {
                         job.Organization = org;
-                        job.Application = new List<Application>();
+                        job.Application = new List<ApplicationResponse>();
                         jobDictionary[job.Id] = job;
                         jobEntry = job;
                     }

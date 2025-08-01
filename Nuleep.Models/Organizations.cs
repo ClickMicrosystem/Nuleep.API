@@ -10,16 +10,13 @@ namespace Nuleep.Models
 {
     public class Organization
     {
-        [JsonPropertyName("_id")]
         public int Id { get; set; }
 
-        [JsonPropertyName("name")]
-        [Required, MaxLength(255)]
         public string? Name { get; set; }
 
-        public List<string>? Benefits { get; set; }
+        public string? Benefits { get; set; }
 
-        public List<string>? Perks { get; set; }
+        public string? Perks { get; set; }
 
         public bool SendOwnership { get; set; } = false;
         public string OrgCode { get; set; }
@@ -36,8 +33,6 @@ namespace Nuleep.Models
 
         public string City { get; set; }
 
-        [JsonPropertyName("email")]
-        [Required, MaxLength(255), EmailAddress]
         public string Email { get; set; }
 
         public string Tel { get; set; }

@@ -20,6 +20,7 @@ namespace Nuleep.Data.Repository
 
         public async Task<dynamic> GetAllRecruiterApplications(string userId)
         {
+            ResponeModel responeModel = new ResponeModel();
             var profileId = await _db.QueryFirstOrDefaultAsync<int>(
                             "SELECT Id FROM Profile WHERE UserRef = @UserId",
                             new { UserId = userId });
@@ -30,7 +31,8 @@ namespace Nuleep.Data.Repository
 
             if(recruiter == null)
             {
-                return GenericClassResponse<dynamic>.Create(recruiter, 1);
+                responeModel.code = 1;
+                return responeModel;
             }
 
 
@@ -42,12 +44,13 @@ namespace Nuleep.Data.Repository
 
             if (jobs.Count() == 0)
             {
-                return GenericClassResponse<dynamic>.Create(jobs, 2);
+                responeModel.code = 2;
+                return responeModel;
             }
 
             var jobIds = jobs.Select(j => (int)j.Id).ToArray();
 
-            var applications = await _db.QueryAsync<Application, Job, Profile, Application>(
+            var applications = await _db.QueryAsync<ApplicationResponse, JobsResponse, Profile, ApplicationResponse>(
                                 @"SELECT a.*, j.*, p.*
                                 FROM Applications a
                                 INNER JOIN Jobs j ON a.JobId = j.Id
@@ -62,12 +65,12 @@ namespace Nuleep.Data.Repository
                                 new { JobIds = jobIds },
                                 splitOn: "Id,Id");
 
-            //turn new { data = applications, code = 0 };
-            return GenericClassResponse<dynamic>.Create(applications, 0);
+            return responeModel;
 
         }
         public async Task<dynamic> GetAllJobSeekerApplications(string userId)
         {
+            ResponeModel responeModel = new ResponeModel();
             var profileId = await _db.QueryFirstOrDefaultAsync<int>(
                             "SELECT Id FROM Profile WHERE UserRef = @UserId",
                             new { UserId = userId });
@@ -78,7 +81,8 @@ namespace Nuleep.Data.Repository
 
             if(jobSeeker == null)
             {
-                return GenericClassResponse<dynamic>.Create(jobSeeker, 1);
+                responeModel.code = 2;
+                return responeModel;
             }
 
             var sql = @"
@@ -92,11 +96,11 @@ namespace Nuleep.Data.Repository
                         WHERE a.ProfileId = @ProfileId
                         ORDER BY a.CreatedAt DESC";
 
-            var appDictionary = new Dictionary<int, Application>();
+            var appDictionary = new Dictionary<int, ApplicationResponse>();
 
             try
             {
-                var result = await _db.QueryAsync<Application, Job, Organization, Application>(
+                var result = await _db.QueryAsync<ApplicationResponse, JobsResponse, Organization, ApplicationResponse>(
                 sql,
                 (app, job, org) =>
                 {
@@ -117,23 +121,25 @@ namespace Nuleep.Data.Repository
             }
 
             
-
-            return GenericClassResponse<dynamic>.Create(appDictionary.Values, 0);
+            return responeModel;
         }
 
-        public async Task<dynamic> GetApplicationsByJob(int jobId)
+        public async Task<dynamic> GetApplicationsByJob(int jobId, int userId)
         {
 
             // Step 1: Get recruiter profile by logged-in userId
             // Step 1: Get recruiter profile by logged-in userId
+            ResponeModel responeModel = new ResponeModel();
             var recruiter = await _db.QueryFirstOrDefaultAsync<dynamic>(
                                 "SELECT Id FROM Profiles WHERE UserId = @UserId AND Type = 'recruiter'",
-                                new { UserId = GetLoggedInUserId() }
+                                new { UserId = userId }
                             );
 
             if (recruiter == null)
             {
-                return new { data = recruiter, code = 1 };
+                responeModel.code = 1;
+                responeModel.data = recruiter;
+                return responeModel;
             }
 
             // Step 2: Get job
@@ -144,13 +150,17 @@ namespace Nuleep.Data.Repository
 
             if (job == null)
             {
-                return new { data = job, code = 2 };
+                responeModel.code = 2;
+                responeModel.data = job;
+                return responeModel;
             }
 
             // Step 3: Check if recruiter owns the job
             if (job.RecruiterId != recruiter.Id)
             {
-                return new { data = job, code = 3 };
+                responeModel.code = 3;
+                responeModel.data = job;
+                return responeModel;
             }
 
             // Step 4: Get applications for the job with populated Job and Profile
@@ -165,7 +175,7 @@ namespace Nuleep.Data.Repository
                         WHERE a.JobId = @JobId
                     ";
 
-            var applications = await _db.QueryAsync<Application, Job, Profile, Application>(
+            var applications = await _db.QueryAsync<ApplicationResponse, JobsResponse, Profile, ApplicationResponse>(
                                     sql,
                                     (application, job, profile) =>
                                     {
@@ -176,17 +186,14 @@ namespace Nuleep.Data.Repository
                                     new { JobId = jobId },
                                     splitOn: "Id,Id"
                                 );
-            
-            return new { data = applications, code = 0 };
-            //return Ok(new { success = true, data = applications });
+
+            responeModel.data = applications;
+            return responeModel;
         }
 
-        public async Task<dynamic> CreateApplication(int jobId, Application application)
+        public async Task<dynamic> CreateApplication(int jobId, Application application, int userId)
         {
-
-            var userId = 2;
-            var job = await _db.QueryFirstOrDefaultAsync<Job>(
-                                            "SELECT * FROM Jobs WHERE Id = @JobId", new { JobId = jobId });
+            var job = await _db.QueryFirstOrDefaultAsync<Job>("SELECT * FROM Jobs WHERE Id = @JobId", new { JobId = jobId });
 
             if (job == null)
             {
@@ -223,7 +230,7 @@ namespace Nuleep.Data.Repository
             return new { data = newApplication, code = 0 };
         }
 
-        public async Task<ApplicationDetail?> GetApplicationWithJobAndProfileAsync(int applicationId)
+        public async Task<ApplicationDetail?> GetApplicationById(int applicationId)
         {
             using var multi = await _db.QueryMultipleAsync(@"
                                 SELECT * FROM Applications WHERE Id = @Id;
@@ -242,6 +249,37 @@ namespace Nuleep.Data.Repository
             application.Job = await multi.ReadFirstOrDefaultAsync<Job>();
 
             return application;
+        }
+
+        public async Task<ApplicationDetail?> UpdateApplication(int applicationId, Application request)
+        {
+            var sql = @"
+                        UPDATE Applications
+                        SET Status = @Status,
+                            CoverLetter = @CoverLetter,
+                            IsRemoved = @IsRemoved,
+                            IsArchived = @IsArchived,
+                            IsSaved = @IsSaved,
+                        WHERE Id = @Id;
+                        SELECT CAST(SCOPE_IDENTITY() as int);";
+
+            await _db.QueryFirstOrDefaultAsync<dynamic>(sql, new
+            {
+                Id = applicationId,
+                Status = request.Status,
+                CoverLetter = request.CoverLetter,
+                IsRemoved = request.IsRemoved,
+                IsArchived = request.IsArchived,
+                IsSaved = request.IsSaved
+            });
+            return await GetApplicationById(applicationId);
+        }
+
+        public async Task<bool> DeleteApplication(int applicationId)
+        {
+            var sql = "DELETE FROM Applications WHERE Id = @Id";
+            var rows = await _db.ExecuteAsync(sql, new { Id = applicationId });
+            return rows > 0;
         }
 
     }

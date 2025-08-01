@@ -71,8 +71,8 @@ namespace Nuleep.Business.Services
                 About = request.CompanyAbout,
                 Culture = request.CompanyCulture,
                 Mission = request.CompanyMission,
-                Benefits = request.CompanyBenefits,
-                Perks = request.CompanyPerks,
+                Benefits = string.Join(",", request.CompanyBenefits),
+                Perks = string.Join(",", request.CompanyPerks),
                 Email = request.CompanyEmail,
                 StreetAddress = request.CompanyStreet,
                 ZipPostal = request.ZipPostal

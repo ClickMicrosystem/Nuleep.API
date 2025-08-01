@@ -25,7 +25,7 @@ namespace Nuleep.API.Controllers
         {
             int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
             
-            GenericClassResponse<dynamic> recruterAppData = await _applicationService.GetAllRecruiterApplications(userId.ToString());
+            var recruterAppData = await _applicationService.GetAllRecruiterApplications(userId.ToString());
 
             if (recruterAppData != null) {
                 if (recruterAppData.Code == 1) {
@@ -46,7 +46,7 @@ namespace Nuleep.API.Controllers
         {
             var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
 
-            GenericClassResponse<dynamic> recruterAppData = await _applicationService.GetAllJobSeekerApplications(userId.ToString());
+            var recruterAppData = await _applicationService.GetAllJobSeekerApplications(userId.ToString());
 
             if (recruterAppData != null) {
                 if (recruterAppData.Code == 1) {
@@ -64,8 +64,9 @@ namespace Nuleep.API.Controllers
         [HttpGet("job/{jobId}")]
         public async Task<IActionResult> GetApplicationsByJob(int jobId)
         {
+            var userId = int.Parse(User.Claims.ToList()[0].Value);
 
-            var applicationData = await _applicationService.GetApplicationsByJob(jobId);
+            var applicationData = await _applicationService.GetApplicationsByJob(jobId, userId);
 
             if(applicationData.code == 1)
             {
@@ -87,9 +88,9 @@ namespace Nuleep.API.Controllers
         [Authorize]
         public async Task<IActionResult> CreateApplication(int jobId, [FromBody] Application application)
         {
-            var UserId = int.Parse(User.Claims.ToList()[0].Value);
+            var userId = int.Parse(User.Claims.ToList()[0].Value);
 
-            var newApplication = await _applicationService.CreateApplication(jobId, application);
+            var newApplication = await _applicationService.CreateApplication(jobId, application, userId);
 
             if (newApplication.code == 1)
             {
@@ -108,12 +109,37 @@ namespace Nuleep.API.Controllers
         {
             var UserId = int.Parse(User.Claims.ToList()[0].Value);
 
-            var result = await _applicationService.GetApplicationByIdAsync(applicationId, userId);
+            var result = await _applicationService.GetApplicationById(applicationId, UserId);
             if (result == null)
                 return NotFound(new { error = "Profile not found or unauthorized" });
 
             return Ok(new { success = true, data = result });
         }
+
+        [HttpPut("{applicationId}")]
+        public async Task<IActionResult> EditApplication(int applicationId, [FromBody] Application request)
+        {
+            var userId = int.Parse(User.Claims.ToList()[0].Value);
+
+            var result = await _applicationService.UpdateApplication(applicationId, userId, request);
+            if (result == null)
+                return BadRequest(new { error = "Not Authorized or Application not found" });
+
+            return Ok(new { success = true, data = result });
+        }
+
+        [HttpDelete("{applicationId}")]
+        public async Task<IActionResult> DeleteApplication(int applicationId)
+        {
+            var userId = int.Parse(User.Claims.ToList()[0].Value);
+
+            var success = await _applicationService.DeleteApplication(applicationId, userId);
+            if (!success)
+                return BadRequest(new { error = "Not authorized or Application not found" });
+
+            return Ok(new { success = true, data = new object[] { } });
+        }
+
 
     }
 }

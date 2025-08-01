@@ -15,8 +15,8 @@ namespace Nuleep.Models
         public required string Location { get; set; }
         public string? Description { get; set; }
         public string? Department { get; set; }
-        public List<string> Requirements { get; set; } = new List<string>();
-        public required List<string> SkillKeywords { get; set; }
+        public string? Requirements { get; set; }
+        public string? SkillKeywords { get; set; }
         public string? JobType { get; set; }
         public string? SalaryType { get; set; }
         public string? Salary { get; set; }
@@ -24,16 +24,10 @@ namespace Nuleep.Models
         public string? RequisitionNumber { get; set; }
         public DateTime? PostingDate { get; set; }
         public DateTime? ClosingDate { get; set; }
-
-        [JsonPropertyName("applications")]
-        public List<Application>? Application { get; set; } = new();
         public string? CompanyContact { get; set; }
         public string? CompanyEmail { get; set; }
-
-        public Organization? Organization { get; set; }
-        public Recruiter? Recruiter { get; set; }
-        public int? RecruiterId { get; set; }
         public int? OrganizationId { get; set; }
+        public int? RecruiterId { get; set; }
         public string? Program { get; set; }
         public string? ExperienceLevel { get; set; }
         public string? NuleepID { get; set; }

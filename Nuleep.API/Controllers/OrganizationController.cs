@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Nuleep.Business.Interface;
 using Nuleep.Models;
 using Nuleep.Models.Blogs;
+using Nuleep.Models.Response;
 
 namespace Nuleep.API.Controllers
 {
@@ -40,8 +41,9 @@ namespace Nuleep.API.Controllers
         [HttpPost("GetEmployeeOrganization")]
         public async Task<IActionResult> GetEmployeeOrganization([FromQuery] int page = 0, [FromQuery] int limit = 10)
         {
-            var orgnaizationData = await _organizationService.GetEmployeeOrganization(page, limit);
+            var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
 
+            var orgnaizationData = await _organizationService.GetEmployeeOrganization(page, limit, userId);
 
             if (orgnaizationData.code == 1)
             {
@@ -58,5 +60,33 @@ namespace Nuleep.API.Controllers
 
             return Ok(new { success = true, data = orgnaizationData });
         }
+
+        [HttpGet("{orgID}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetOrganization(int orgID)
+        {
+            OrganizationsResponse organization = await _organizationService.GetOrganizationById(orgID);
+            if (organization.Id < 1)
+            {
+                return NotFound(new { error = $"Organization not found with the id of {orgID}" });
+            }
+
+            var jobs = await _organizationService.GetJobsByOrganizationId(orgID);
+
+            var response = new GetOrganizationResponse
+            {
+                Success = true,
+                Count = jobs.Count,
+                Data = new
+                {
+                    organization,
+                    jobs
+                }
+            };
+
+            return Ok(response);
+        }
+
+
     }
 }

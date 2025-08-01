@@ -19,7 +19,7 @@ namespace Nuleep.Models.Blogs
         public string? BlogImg_BlobName { get; set; }
         public string? BlogImg_FullUrl { get; set; }
 
-        public List<string> Likes { get; set; } = new List<string>();
+        public string Likes { get; set; }
 
         [Required]
         public string ContentMark { get; set; } = "both";
