@@ -12,23 +12,31 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-
-
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-//var key = Encoding.ASCII.GetBytes("NuleepAPIKey");
 var key = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]);
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
-
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.WithOrigins(
+                "http://10.10.1.52:3000",      // IP + port
+                "http://localhost"
+                )
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
 })
+
 .AddJwtBearer(x =>
 {
     x.TokenValidationParameters = new TokenValidationParameters
@@ -71,10 +79,12 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+#region // DI Registrations
 
-// DI Registrations
+
 
 builder.Services.AddSingleton<AzureFileService>();
+builder.Services.AddSingleton<EmailService>();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -103,25 +113,17 @@ builder.Services.AddScoped<IAdminService, AdminService>();
 builder.Services.AddScoped<IEventRepository, EventRepository>();
 builder.Services.AddScoped<IEventService, EventsService>();
 
+#endregion
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+app.UseSwagger();
+app.UseSwaggerUI();
 app.UseHttpsRedirection();
-
-app.UseCors(x => x
-          .AllowAnyOrigin()
-          .AllowAnyMethod()
-          .AllowAnyHeader());
-
+app.UseRouting();
+app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

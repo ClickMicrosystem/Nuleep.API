@@ -196,7 +196,7 @@ namespace Nuleep.Data.Repository
                         SELECT u.Id AS UserId, u.Email, p.FullName, p.JobTitle, p.StreetAddress
                         FROM EventRegistrations er
                         INNER JOIN Users u ON er.UserId = u.Id
-                        LEFT JOIN Profiles p ON u.Id = p.UserId
+                        LEFT JOIN Profile p ON u.Id = p.UserId
                         WHERE er.EventId = @EventId";
 
             return (await _db.QueryAsync<RegisteredUser>(sql, new { EventId = eventId })).ToList();

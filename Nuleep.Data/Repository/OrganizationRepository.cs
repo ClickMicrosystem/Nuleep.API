@@ -31,7 +31,7 @@ namespace Nuleep.Data.Repository
 
             // 1. Find Recruiter Profile
             var profile = await _db.QueryFirstOrDefaultAsync<dynamic>(
-                            "SELECT Id, OrganizationId, OrganizationApproved FROM Profiles WHERE UserId = @UserId AND Type = 'recruiter'",
+                            "SELECT Id, OrganizationId, OrganizationApproved FROM Profile WHERE UserId = @UserId AND Type = 'recruiter'",
                             new { UserId = userId }
                         );
 
@@ -73,14 +73,14 @@ namespace Nuleep.Data.Repository
                                     SELECT a.*, j.PositionTitle, p.FullName as ProfileName
                                     FROM Applications a
                                     INNER JOIN Jobs j ON a.JobId = j.Id
-                                    INNER JOIN Profiles p ON a.ProfileId = p.Id
+                                    INNER JOIN Profile p ON a.ProfileId = p.Id
                                     WHERE a.JobId IN @JobIds
                                 ", new { JobIds = jobIds })).ToList();
 
             var employees = (await _db.QueryAsync<dynamic>(@"
                                 SELECT p.*, 
                                     (SELECT COUNT(*) FROM Jobs j WHERE j.RecruiterId = p.Id) as JobCount
-                                FROM Profiles p
+                                FROM Profile p
                                 WHERE p.OrganizationId = @OrganizationId AND p.IsDeleted = 0
                                 ORDER BY p.Id
                                 OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY

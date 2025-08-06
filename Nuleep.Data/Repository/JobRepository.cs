@@ -121,7 +121,7 @@ namespace Nuleep.Data.Repository
         {
 
             var recruiter = await _db.QueryFirstOrDefaultAsync<dynamic>(
-                                    "SELECT * FROM Profiles WHERE UserId = @UserId AND Type = 'recruiter'",
+                                    "SELECT * FROM Profile WHERE UserId = @UserId AND Type = 'recruiter'",
                                     new { UserId = userId });
 
             if (recruiter != null)

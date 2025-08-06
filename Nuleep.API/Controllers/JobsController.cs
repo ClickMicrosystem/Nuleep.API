@@ -156,7 +156,7 @@ namespace Nuleep.API.Controllers
         // @desc      Delete a job
         // @route     DELETE /api/jobs/:jobID
         // @access    Private
-        [HttpDelete("api/jobs/{jobId}")]
+        [HttpDelete("{jobId}")]
         [Authorize]
         public async Task<IActionResult> DeleteJob(int jobId)
         {

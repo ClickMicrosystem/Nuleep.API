@@ -131,7 +131,7 @@ namespace Nuleep.Data.Repository
             // Step 1: Get recruiter profile by logged-in userId
             ResponeModel responeModel = new ResponeModel();
             var recruiter = await _db.QueryFirstOrDefaultAsync<dynamic>(
-                                "SELECT Id FROM Profiles WHERE UserId = @UserId AND Type = 'recruiter'",
+                                "SELECT Id FROM Profile WHERE UserId = @UserId AND Type = 'recruiter'",
                                 new { UserId = userId }
                             );
 
@@ -171,7 +171,7 @@ namespace Nuleep.Data.Repository
                             p.Id, p.FullName, p.Email
                         FROM Applications a
                         LEFT JOIN Jobs j ON a.JobId = j.Id
-                        LEFT JOIN Profiles p ON a.ProfileId = p.Id
+                        LEFT JOIN Profile p ON a.ProfileId = p.Id
                         WHERE a.JobId = @JobId
                     ";
 
@@ -234,7 +234,7 @@ namespace Nuleep.Data.Repository
         {
             using var multi = await _db.QueryMultipleAsync(@"
                                 SELECT * FROM Applications WHERE Id = @Id;
-                                SELECT p.* FROM Profiles p
+                                SELECT p.* FROM Profile p
                                     INNER JOIN Applications a ON a.ProfileId = p.Id
                                     WHERE a.Id = @Id;
                                 SELECT j.* FROM Jobs j
