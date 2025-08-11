@@ -41,10 +41,16 @@ namespace Nuleep.Data.Repository
 
         public async Task<int> CreateUser(User user)
         {
-            var sql = @"INSERT INTO Users (Email, Password, Role)
-                VALUES (@Email, @Password, @Role);
+            var sql = @"INSERT INTO Users (Email, Password, Role, GoogleId)
+                VALUES (@Email, @Password, @Role, @GoogleId);
                 SELECT CAST(SCOPE_IDENTITY() as int)";
-            return await _db.ExecuteScalarAsync<int>(sql, user);
+            return await _db.ExecuteScalarAsync<int>(sql, new
+            {
+                Email = user.Email,
+                Password = user.Password,
+                Role = user.Role,
+                GoogleId = user.GoogleId
+            });
         }
 
         public async Task UpdateResetToken(int userId, string hashedToken, DateTime expiry)
@@ -119,8 +125,13 @@ namespace Nuleep.Data.Repository
             string deleteProfiles = "UPDATE Profile SET IsDelete = 1 WHERE UserRef = @Id";
             await _db.ExecuteAsync(deleteProfiles, new { Id = request.UId });
         }
-
-
+        public async Task UpdateGoogleId(int userId, string googleId)
+        {
+            var sql = @"UPDATE Users 
+                SET GoogleId = @GoogleId
+                WHERE Id = @UserId";
+            await _db.ExecuteAsync(sql, new { GoogleId = googleId,  UserId = userId });
+        }
 
 
     }

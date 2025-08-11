@@ -14,23 +14,19 @@ var builder = WebApplication.CreateBuilder(args);
 
 var key = Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]);
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
-
+builder.Services.AddHttpClient();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(
-                "http://10.10.1.52:3000",      // IP + port
-                "http://localhost"
-                )
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+
+        policy.AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -85,6 +81,7 @@ builder.Services.AddSwaggerGen(c =>
 
 builder.Services.AddSingleton<AzureFileService>();
 builder.Services.AddSingleton<EmailService>();
+builder.Services.AddSingleton<GoogleOAuthService>();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -119,7 +116,7 @@ var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 app.UseRouting();
 app.UseCors("AllowAll");
 app.UseAuthentication();

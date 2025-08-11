@@ -4,6 +4,7 @@ using Nuleep.Models.Response;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -22,6 +23,8 @@ namespace Nuleep.Business.Interface
         Task<User?> UpdateEmailVerifiedStatus(int id, bool isEmailVerified);
         Task RemoveEmployee(RemoveEmployeeRequest request);
         Task SendCompanyClaimEmail(CompanyClaimEmailRequest request);
+        Task UpdateGoogleId(int userId, string googleId);
+        Task<int> CreateUser(User user);
 
     }
 }

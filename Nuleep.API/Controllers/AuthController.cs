@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using DocumentFormat.OpenXml.EMMA;
+using DocumentFormat.OpenXml.Spreadsheet;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
@@ -8,11 +10,15 @@ using Nuleep.Business.Interface;
 using Nuleep.Business.Services;
 using Nuleep.Models;
 using Nuleep.Models.Request;
+using Nuleep.Models.Response;
+using SendGrid.Helpers.Mail;
+using SendGrid;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using static Nuleep.API.Controllers.AuthController;
+using Microsoft.AspNetCore.Cors;
 
 namespace Nuleep.API.Controllers
 {
@@ -22,13 +28,17 @@ namespace Nuleep.API.Controllers
     {
         private readonly IUserService _userService;
         private readonly EmailService _emailService;
+        private readonly GoogleOAuthService _googleOAuthService;
         private readonly IConfiguration _config;
+        private readonly IProfileService _profileService;
 
-        public AuthController(IUserService userService, IConfiguration config, EmailService emailService)
+        public AuthController(IUserService userService, IConfiguration config, EmailService emailService, GoogleOAuthService googleOAuthService, IProfileService profileService)
         {
             _userService = userService;
             _config = config;
             _emailService = emailService;
+            _googleOAuthService = googleOAuthService;
+            _profileService = profileService;
         }
 
         [HttpPost("singleSignin")]
@@ -181,6 +191,159 @@ namespace Nuleep.API.Controllers
                 return StatusCode(500, new { error = "Email could not be sent" });
             }
         }
+
+        [HttpPost("admin/signin")]
+        public async Task<IActionResult> AdminSignin([FromBody] SignInRequest request)
+        {
+            try
+            {
+                var result = await _userService.GetUserByUsername(request.Email);
+
+                if (result == null || !BCrypt.Net.BCrypt.Verify(request.Password, result.Password))
+                {
+                    return Unauthorized(new { success = false, data = "Invalid credentials" });
+                }
+                else if (result.Role != "admin")
+                {
+                    return Unauthorized(new { success = false, data = "Access denied" });
+                }
+                result.Password = null;
+                return Ok(new
+                    {
+                        success = true,
+                        user = result,
+                        token = GenerateToken(result)
+                    });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { success = false, data = ex.Message });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, new { success = false, data = "Server error" });
+            }
+        }
+
+        [HttpPost("google")]
+        public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request)
+        {
+            try
+            {
+                var result = new GoogleLoginResponse(); 
+                var profile = await _googleOAuthService.GetProfileInfo(request.Code);
+                if (profile == null) throw new UnauthorizedAccessException();
+
+                var user = await _userService.GetUserByUsername(profile.Email);
+
+                var token = GenerateToken(user);
+
+                if (user != null)
+                {
+                    var hasProfile = await _profileService.GetExistingProfileByUserAsync(user.Id.ToString());
+
+                    if (string.IsNullOrEmpty(user.GoogleId))
+                    {
+                        user.GoogleId = profile.Sub;
+                        await _userService.UpdateGoogleId(user.Id, user.GoogleId);
+                    }
+
+                    result =  new GoogleLoginResponse
+                    {
+                        Token = token,
+                        HasProfile = hasProfile != null,
+                        Email = user.Email
+                    };
+                }
+                else
+                {
+                    var newUser = new User
+                    {
+                        Email = profile.Email,
+                        GoogleId = profile.Sub
+                    };
+                    await _userService.CreateUser(newUser);
+
+                    result = new GoogleLoginResponse
+                    {
+                        Token = GenerateToken(newUser),
+                        HasProfile = false,
+                        Email = newUser.Email
+                    };
+                }
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Unauthorized();
+            }
+        }
+
+        //[HttpPost("verifyEmailSend")]
+        //public async Task<IActionResult> VerifyEmailSend([FromBody] EmailRequest request)
+        //{
+        //    // Encode pId to Base64
+        //    var pIdBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(request.PId));
+
+        //    // Build reset URL
+        //    var resetUrl = $"{_frontendUrl}/{pIdBase64}/verifyEmail";
+
+        //    // Plain text email
+        //    var messageText = $@"Email verification
+        //    Welcome to Nuleep.
+        //    Please use this link to verify your email: {resetUrl}";
+
+        //    // HTML email
+        //    var htmlContent = $@"
+        //    <h3>Email verification</h3>
+        //    <h3>Welcome to the Nuleep Community. We are excited to have you join Nuleep!</h3>
+        //    <div>We are in <i>BETA</i> mode so reach out if you have any questions to 
+        //    <a href='mailto:jane@nuleep.com' target='_blank'>jane@nuleep.com</a>.</div>
+        //    <p>Please use <a href='{resetUrl}' target='_blank' style='color:black;font-weight:bold'>this link</a> to verify your email and start your account at Nuleep:</p>
+        //    <h2><a href='{resetUrl}' target='_blank' style='color:black;font-weight:bold'>Click to Verify your Account</a></h2>
+        //    <br/>Thank you,
+        //    <br/>Nuleep Team
+        //    <div style='margin-top:20px'>
+        //        <table width='100%' border='0' cellpadding='0' cellspacing='0' style='background:rgb(242,242,242);padding:20px 15px'>
+        //            <tbody>
+        //                <tr>
+        //                    <td style='padding:0px;font-size:12px;line-height:18px;color:rgb(136,136,136)'>
+        //                        <a href='http://www.nuleep.com' target='_blank'>Nuleep</a>
+        //                    </td>
+        //                </tr>
+        //                <tr>
+        //                    <td style='padding:0px;font-size:12px;line-height:18px;color:rgb(136,136,136)'>
+        //                        Copyright © 2022 8200 Wilshire Blvd Beverly Hills, CA 90211, United States. 
+        //                        All rights reserved.
+        //                    </td>
+        //                </tr>
+        //            </tbody>
+        //        </table>
+        //    </div>";
+
+        //    try
+        //    {
+        //        var client = new SendGridClient(_sendGridApiKey);
+        //        var from = new EmailAddress(_fromEmail, "Nuleep");
+        //        var to = new EmailAddress(request.Email);
+        //        var subject = "Nuleep Email verification";
+
+        //        var msg = MailHelper.CreateSingleEmail(from, to, subject, messageText, htmlContent);
+        //        var response = await client.SendEmailAsync(msg);
+
+        //        if (response.IsSuccessStatusCode)
+        //        {
+        //            return Ok(new { success = true, message = "Mail was successfully sent!" });
+        //        }
+
+        //        return StatusCode((int)response.StatusCode, new { error = "Email could not be sent" });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine(ex);
+        //        return StatusCode(500, new { error = "Internal server error while sending email" });
+        //    }
+        //}
 
         public static (string Token, string HashedToken, DateTime Expiry) GenerateResetToken()
         {

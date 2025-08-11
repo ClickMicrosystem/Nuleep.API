@@ -1,4 +1,7 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using Nuleep.Business.Interface;
 using Nuleep.Data.Interface;
 using Nuleep.Data.Repository;
@@ -58,7 +61,24 @@ namespace Nuleep.Business.Services
         {
            return await _userRepo.UpdateIsProfileStatus(id, isEmailVerified);
         }
+        //public async Task<AdminSigninResponse> AdminSignin(ClaimsPrincipal user)
+        //{
+        //    if (user == null || !user.Identity.IsAuthenticated)
+        //        throw new UnauthorizedAccessException("Invalid credentials");
 
+        //    var role = user.FindFirst(ClaimTypes.Role)?.Value;
+        //    var email = user.FindFirst(ClaimTypes.Email)?.Value;
+
+        //    if (role != "admin")
+        //        throw new UnauthorizedAccessException("Access denied");
+
+        //    return new AdminSigninResponse
+        //    {
+        //        Email = email,
+        //        Role = role,
+        //        Token = ""
+        //    };
+        //}
         public async Task SendCompanyClaimEmail(CompanyClaimEmailRequest request)
         {
             var frontendUrl = _config["FrontendUrl"];
@@ -90,7 +110,7 @@ namespace Nuleep.Business.Services
             var existingUser = await _userRepo.GetUserByUsername(request.Email);
             if (existingUser != null) return null;
 
-            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password);
+            var hashedPassword = BCrypt.Net.BCrypt.HashPassword(request.Password, workFactor: 10);
 
             var newUser = new User
             {
@@ -114,5 +134,16 @@ namespace Nuleep.Business.Services
                 ExpTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 1000 * 86400
             };
         }
+        public async Task UpdateGoogleId(int userId, string googleId)
+        {
+            await _userRepo.UpdateGoogleId(userId, googleId);
+        }
+
+        public async Task<int> CreateUser(User user)
+        {
+            return await _userRepo.CreateUser(user);
+        }
+
+
     }
 }
