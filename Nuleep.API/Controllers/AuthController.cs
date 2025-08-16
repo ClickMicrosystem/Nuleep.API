@@ -279,71 +279,72 @@ namespace Nuleep.API.Controllers
             }
         }
 
-        //[HttpPost("verifyEmailSend")]
-        //public async Task<IActionResult> VerifyEmailSend([FromBody] EmailRequest request)
-        //{
-        //    // Encode pId to Base64
-        //    var pIdBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(request.PId));
+        [HttpPost("verifyEmailSend")]
+        public async Task<IActionResult> VerifyEmailSend([FromBody] EmailRequest request)
+        {
+            // Encode pId to Base64
+            var pIdBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(request.PId));
+            string _frontendUrl = _config["FrontendUrl"];
 
-        //    // Build reset URL
-        //    var resetUrl = $"{_frontendUrl}/{pIdBase64}/verifyEmail";
+            // Build reset URL
+            var resetUrl = $"{_frontendUrl}/{pIdBase64}/verifyEmail";
 
-        //    // Plain text email
-        //    var messageText = $@"Email verification
-        //    Welcome to Nuleep.
-        //    Please use this link to verify your email: {resetUrl}";
+            // Plain text email
+            var messageText = $@"Email verification
+            Welcome to Nuleep.
+            Please use this link to verify your email: {resetUrl}";
 
-        //    // HTML email
-        //    var htmlContent = $@"
-        //    <h3>Email verification</h3>
-        //    <h3>Welcome to the Nuleep Community. We are excited to have you join Nuleep!</h3>
-        //    <div>We are in <i>BETA</i> mode so reach out if you have any questions to 
-        //    <a href='mailto:jane@nuleep.com' target='_blank'>jane@nuleep.com</a>.</div>
-        //    <p>Please use <a href='{resetUrl}' target='_blank' style='color:black;font-weight:bold'>this link</a> to verify your email and start your account at Nuleep:</p>
-        //    <h2><a href='{resetUrl}' target='_blank' style='color:black;font-weight:bold'>Click to Verify your Account</a></h2>
-        //    <br/>Thank you,
-        //    <br/>Nuleep Team
-        //    <div style='margin-top:20px'>
-        //        <table width='100%' border='0' cellpadding='0' cellspacing='0' style='background:rgb(242,242,242);padding:20px 15px'>
-        //            <tbody>
-        //                <tr>
-        //                    <td style='padding:0px;font-size:12px;line-height:18px;color:rgb(136,136,136)'>
-        //                        <a href='http://www.nuleep.com' target='_blank'>Nuleep</a>
-        //                    </td>
-        //                </tr>
-        //                <tr>
-        //                    <td style='padding:0px;font-size:12px;line-height:18px;color:rgb(136,136,136)'>
-        //                        Copyright © 2022 8200 Wilshire Blvd Beverly Hills, CA 90211, United States. 
-        //                        All rights reserved.
-        //                    </td>
-        //                </tr>
-        //            </tbody>
-        //        </table>
-        //    </div>";
+            // HTML email
+            var htmlContent = $@"
+            <h3>Email verification</h3>
+            <h3>Welcome to the Nuleep Community. We are excited to have you join Nuleep!</h3>
+            <div>We are in <i>BETA</i> mode so reach out if you have any questions to 
+            <a href='mailto:jane@nuleep.com' target='_blank'>jane@nuleep.com</a>.</div>
+            <p>Please use <a href='{resetUrl}' target='_blank' style='color:black;font-weight:bold'>this link</a> to verify your email and start your account at Nuleep:</p>
+            <h2><a href='{resetUrl}' target='_blank' style='color:black;font-weight:bold'>Click to Verify your Account</a></h2>
+            <br/>Thank you,
+            <br/>Nuleep Team
+            <div style='margin-top:20px'>
+                <table width='100%' border='0' cellpadding='0' cellspacing='0' style='background:rgb(242,242,242);padding:20px 15px'>
+                    <tbody>
+                        <tr>
+                            <td style='padding:0px;font-size:12px;line-height:18px;color:rgb(136,136,136)'>
+                                <a href='http://www.nuleep.com' target='_blank'>Nuleep</a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style='padding:0px;font-size:12px;line-height:18px;color:rgb(136,136,136)'>
+                                Copyright © 2022 8200 Wilshire Blvd Beverly Hills, CA 90211, United States. 
+                                All rights reserved.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>";
 
-        //    try
-        //    {
-        //        var client = new SendGridClient(_sendGridApiKey);
-        //        var from = new EmailAddress(_fromEmail, "Nuleep");
-        //        var to = new EmailAddress(request.Email);
-        //        var subject = "Nuleep Email verification";
+            try
+            {
+                var client = new SendGridClient(_config["SendGrid:ApiKey"]);
+                var from = new EmailAddress(_config["SendGrid:FromEmail"], "Nuleep");
+                var to = new EmailAddress(request.Email);
+                var subject = "Nuleep Email verification";
 
-        //        var msg = MailHelper.CreateSingleEmail(from, to, subject, messageText, htmlContent);
-        //        var response = await client.SendEmailAsync(msg);
+                var msg = MailHelper.CreateSingleEmail(from, to, subject, messageText, htmlContent);
+                var response = await client.SendEmailAsync(msg);
 
-        //        if (response.IsSuccessStatusCode)
-        //        {
-        //            return Ok(new { success = true, message = "Mail was successfully sent!" });
-        //        }
+                if (response.IsSuccessStatusCode)
+                {
+                    return Ok(new { success = true, message = "Mail was successfully sent!" });
+                }
 
-        //        return StatusCode((int)response.StatusCode, new { error = "Email could not be sent" });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        Console.WriteLine(ex);
-        //        return StatusCode(500, new { error = "Internal server error while sending email" });
-        //    }
-        //}
+                return StatusCode((int)response.StatusCode, new { error = "Email could not be sent" });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                return StatusCode(500, new { error = "Internal server error while sending email" });
+            }
+        }
 
         public static (string Token, string HashedToken, DateTime Expiry) GenerateResetToken()
         {

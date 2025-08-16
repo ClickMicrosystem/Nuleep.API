@@ -63,7 +63,7 @@ namespace Nuleep.Business.Services
             };
         }
 
-        public async Task<DeleteResult> DeleteResumeAsync(string containerName, string blobName)
+        public async Task<DeleteResult> DeleteByBlobNameAsync(string containerName, string blobName)
         {
             var containerClient = _blobServiceClient.GetBlobContainerClient(containerName);
             var blobClient = containerClient.GetBlobClient(blobName);

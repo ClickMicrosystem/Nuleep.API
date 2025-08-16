@@ -1,5 +1,6 @@
 ﻿using Nuleep.Models;
 using Nuleep.Models.Blogs;
+using Nuleep.Models.Request;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,5 +15,7 @@ namespace Nuleep.Business.Interface
         Task<dynamic> UpdateJob(int userId, Job job);
         Task<dynamic> GetJobById(int id);
         Task<ResponeModel> GetAllRecruiterJobs(int userId);
+        Task<(List<Job>, int)> GetAllJobs(JobSearchRequest request);
+        Task TransferJobs(JobsTransferRequest request);
     }
 }

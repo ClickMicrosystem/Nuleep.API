@@ -10,6 +10,9 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Bibliography;
 using Nuleep.Models.Response;
+using Nuleep.Models.Request;
+using System.Net;
+using System.Text;
 
 namespace Nuleep.Data.Repository
 {
@@ -42,7 +45,8 @@ namespace Nuleep.Data.Repository
                                     new { ProfileId = profileId });
 
 
-            if (recruiter == null) {
+            if (recruiter == null)
+            {
                 responeModel.code = 1;
                 responeModel.data = recruiter;
                 return responeModel;
@@ -52,7 +56,7 @@ namespace Nuleep.Data.Repository
                         "SELECT Id FROM Organizations WHERE ProfileId = @ProfileId",
                         new { ProfileId = profileId });
 
-           var nuleepId = $"nuleep-{Guid.NewGuid().ToString("N").Substring(0, 8)}";
+            var nuleepId = $"nuleep-{Guid.NewGuid().ToString("N").Substring(0, 8)}";
 
             job.Salary = job.Salary.Replace(",", "");
 
@@ -87,7 +91,7 @@ namespace Nuleep.Data.Repository
                 Program = job.Program,
                 ExperienceLevel = job.ExperienceLevel,
                 NuleepID = nuleepId
-            });            
+            });
 
             responeModel.data = new
             {
@@ -170,7 +174,6 @@ namespace Nuleep.Data.Repository
                 }
             };
         }
-
 
         public async Task<dynamic> GetJobById(int id)
         {
@@ -260,9 +263,139 @@ namespace Nuleep.Data.Repository
 
             responeModel.data = jobDictionary.Values;
             return responeModel;
-            
+
         }
-    
-    
+
+        public async Task<(List<Job>, int)> GetAllJobs(JobSearchRequest request)
+        {
+            var sql = new StringBuilder(@"
+                                            SELECT j.Id, j.PositionTitle, j.Location, j.SalaryType, j.Experience, j.JobType, j.Salary, j.ClosingDate, j.PostingDate, o.Name AS OrgName, o.Benefits AS OrgBenefits, o.Culture AS OrgCulture
+                                            FROM Jobs j
+                                            INNER JOIN Organizations o ON j.OrganizationId = o.Id
+                                            WHERE j.ClosingDate >= GETUTCDATE()
+                                        ");
+
+            var parameters = new DynamicParameters();
+
+            // 🔎 Company Name
+            if (!string.IsNullOrEmpty(request.CompanyName))
+            {
+                sql.Append(" AND o.Name LIKE @CompanyName");
+                parameters.Add("@CompanyName", $"%{request.CompanyName}%");
+            }
+
+            // 🔎 Benefits
+            if (request.Benefits != null && request.Benefits.Any())
+            {
+                sql.Append(" AND (");
+                for (int i = 0; i < request.Benefits.Count; i++)
+                {
+                    if (i > 0) sql.Append(" OR ");
+                    sql.Append($"o.Benefits LIKE @Benefit{i}");
+                    parameters.Add($"@Benefit{i}", $"%{request.Benefits[i]}%");
+                }
+                sql.Append(")");
+            }
+
+            // 🔎 Culture
+            if (!string.IsNullOrEmpty(request.Culture))
+            {
+                sql.Append(" AND o.Culture LIKE @Culture");
+                parameters.Add("@Culture", $"%{request.Culture}%");
+            }
+
+            // 🔎 Job title
+            if (!string.IsNullOrEmpty(request.Name))
+            {
+                sql.Append(" AND j.PositionTitle LIKE @PositionTitle");
+                parameters.Add("@PositionTitle", $"%{request.Name}%");
+            }
+
+            // 🔎 Location
+            if (!string.IsNullOrEmpty(request.Location))
+            {
+                sql.Append(" AND j.Location LIKE @Location");
+                parameters.Add("@Location", $"%{request.Location}%");
+            }
+
+            // 🔎 Compensation
+            if (request.Compensation != null && request.Compensation.Any())
+            {
+                sql.Append(" AND j.SalaryType IN @Compensation");
+                parameters.Add("@Compensation", request.Compensation);
+            }
+
+            // 🔎 Experience
+            if (request.Experience != null && request.Experience.Any())
+            {
+                sql.Append(" AND j.Experience IN @Experience");
+                parameters.Add("@Experience", request.Experience);
+            }
+
+            // 🔎 JobType
+            if (request.JobType != null && request.JobType.Any())
+            {
+                sql.Append(" AND j.JobType IN @JobType");
+                parameters.Add("@JobType", request.JobType);
+            }
+
+            // 🔎 Salary Range
+            if (request.MaxSalary.HasValue && request.MaxSalary.Value > 0)
+            {
+                sql.Append(" AND j.Salary BETWEEN @MinSalary AND @MaxSalary");
+                parameters.Add("@MinSalary", request.MinSalary ?? 0);
+                parameters.Add("@MaxSalary", request.MaxSalary ?? int.MaxValue);
+            }
+
+            // 🔎 Skills
+            if (request.Skills != null && request.Skills.Any())
+            {
+                sql.Append(" AND EXISTS (SELECT 1 FROM JobSkills js WHERE js.JobId = j.Id AND js.Skill IN @Skills)");
+                parameters.Add("@Skills", request.Skills);
+            }
+
+            // Sorting
+            sql.Append(request.PostingDateSort == -1
+                ? " ORDER BY j.PostingDate DESC"
+                : " ORDER BY j.PostingDate ASC");
+
+            // Pagination
+            sql.Append(" OFFSET @Offset ROWS FETCH NEXT @Limit ROWS ONLY");
+            parameters.Add("@Offset", (request.Page - 1) * request.Limit);
+            parameters.Add("@Limit", request.Limit);
+
+            // Query data
+            List<Job> jobs = (await _db.QueryAsync<Job>(sql.ToString(), parameters)).ToList();
+
+            // Query total count (without paging)
+            var countSql = $"SELECT COUNT(*) FROM Jobs j INNER JOIN Organizations o ON j.OrganizationId = o.Id WHERE j.ClosingDate >= GETUTCDATE()";
+            var total = await _db.ExecuteScalarAsync<int>(countSql, parameters);
+
+            return (jobs, total);
+        }
+
+        public async Task<IEnumerable<int>> GetJobIdsByRecruiter(int recId)
+        {
+            var sql = "SELECT Id FROM Jobs WHERE RecruiterId = @RecId";
+            return await _db.QueryAsync<int>(sql, new { RecId = recId });
+        }
+
+        public async Task UpdateJobsRecruiter(IEnumerable<int> jobIds, int newRecId)
+        {
+            var sql = "UPDATE Jobs SET RecruiterId = @NewRecId WHERE Id IN @Ids";
+            await _db.ExecuteAsync(sql, new { NewRecId = newRecId, Ids = jobIds });
+        }
+
+        public async Task MarkUserDeleted(int userId)
+        {
+            var sql = "UPDATE Users SET IsDelete = 1 WHERE Id = @UserId";
+            await _db.ExecuteAsync(sql, new { UserId = userId });
+        }
+
+        public async Task MarkProfileDeleted(int profileId)
+        {
+            var sql = "UPDATE Profile SET IsDelete = 1 WHERE Id = @ProfileId";
+            await _db.ExecuteAsync(sql, new { ProfileId = profileId });
+        }
     }
 }

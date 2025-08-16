@@ -21,6 +21,7 @@ namespace Nuleep.Data.Interface
         Task<dynamic> UpdateProfileImage(int profileId, MediaImage mediaImage);
         Task<dynamic> UpdateHeaderImage(int profileId, MediaImage mediaImage);
         Task<Recruiter> GetRecruiterProfileByUserId(string userId);
+        Task<Recruiter?> GetAdminRecruiterProfileByOrgId(int orgId);
 
     }
 }

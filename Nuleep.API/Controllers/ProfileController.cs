@@ -259,7 +259,7 @@ namespace Nuleep.API.Controllers
             if (jobSeeker.Resume?.Count > 0)
             {
                 var oldFile = jobSeeker.Resume[0];
-                DeleteResult deleted = await _azurefileService.DeleteResumeAsync("resumes", oldFile.BlobName);
+                DeleteResult deleted = await _azurefileService.DeleteByBlobNameAsync("resumes", oldFile.BlobName);
                 if (deleted.Deleted)
                 {
                     jobSeeker.Resume = jobSeeker.Resume.Where(r => r.BlobName != oldFile.BlobName).ToList();
@@ -292,7 +292,7 @@ namespace Nuleep.API.Controllers
             if (jobSeeker == null)
                 return NotFound(new { error = "Profile not found" });
 
-            var deleted = await _azurefileService.DeleteResumeAsync("resumes", dto.File);
+            var deleted = await _azurefileService.DeleteByBlobNameAsync("resumes", dto.File);
             JobSeeker updatedJobseeker = new JobSeeker();
             if (deleted.Deleted && jobSeeker.Resume != null)
             {

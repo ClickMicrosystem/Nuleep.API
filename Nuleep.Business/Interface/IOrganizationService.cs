@@ -1,5 +1,7 @@
-﻿using Nuleep.Models;
+﻿using Microsoft.AspNetCore.Http;
+using Nuleep.Models;
 using Nuleep.Models.Blogs;
+using Nuleep.Models.Request;
 using Nuleep.Models.Response;
 using System;
 using System.Collections.Generic;
@@ -15,5 +17,11 @@ namespace Nuleep.Business.Interface
         Task<Organization> GetByOrgCode(string orgCode);
         Task<OrganizationsResponse> GetOrganizationById(int orgId);
         Task<List<Job>> GetJobsByOrganizationId(int orgId);
+        Task<(bool Success, string ErrorMessage, OrganizationsResponse? Data)> CreateOrganization(string userId, Organization request);
+        Task<OrganizationsResponse> EditOrganization(int orgId, string userId, Organization dto);
+        Task<OrganizationsResponse> UpdateOrganizationLogo(int orgId, MediaImage file);
+        Task<List<OrganizationsResponse>> GetAllOrganizationList();
+        Task JoinOrganization(JoinOrganizationRequest request);
+        Task ApproveJoinOrganization(int profileId, int orgId, int currentUserId, string role);
     }
 }

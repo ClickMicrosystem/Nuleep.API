@@ -56,7 +56,6 @@ namespace Nuleep.Data.Repository
             Profile profile = new Profile();
             try
             {
-
                 var profileQuery = "SELECT UserRef FROM Profile WHERE Id = @profileId";
                 var userId = await _db.QueryFirstOrDefaultAsync<int>(profileQuery, new { profileId = profileId });
                 var sql = "SELECT * FROM Users WHERE Id = @UserRefId";
@@ -860,7 +859,8 @@ namespace Nuleep.Data.Repository
                     Organization = organization,
                     Education = education,
                     Awards = awards,
-                    ProfileImage = profileImg
+                    ProfileImage = profileImg,
+                    OrganizationId = recruiterData?.OrganizationId
                 };
 
             }
@@ -1191,7 +1191,13 @@ namespace Nuleep.Data.Repository
             return responeModel;
         }
 
+        public async Task<Recruiter?> GetAdminRecruiterProfileByOrgId(int orgId)
+        {
 
+            var sql = "SELECT ProfileId FROM Recruiters WHERE OrganizationId = @OrgId and OrganizationRole = 'admin'";
+            int profileId = await _db.QueryFirstOrDefaultAsync<int>(sql, new { OrgId = orgId });
+            return await GetRecruiterByProfileId(profileId);
+        }
 
     }
 }

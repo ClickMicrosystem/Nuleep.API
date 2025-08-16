@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using Azure.Core;
 using Dapper;
+using DocumentFormat.OpenXml.Vml;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +10,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
 using Nuleep.Business.Interface;
 using Nuleep.Models;
+using Nuleep.Models.Request;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Nuleep.API.Controllers
@@ -27,6 +29,22 @@ namespace Nuleep.API.Controllers
             _db = new SqlConnection(config.GetConnectionString("DefaultConnection"));
         }
 
+        [HttpPost]
+        public async Task<IActionResult> GetAllJobs([FromBody] JobSearchRequest request)
+        {
+            var(jobs, total) = await _jobService.GetAllJobs(request);
+            var result =    new
+                        {
+                            success = true,
+                            data = new
+                            {
+                                data = jobs,
+                                total
+                            }
+                        };
+            return Ok(result);
+        }
+
         [HttpPost("create")]
         public async Task<IActionResult> CreateJob(Job job)
         {
@@ -38,7 +56,7 @@ namespace Nuleep.API.Controllers
             return Ok(new { success = true, data = createdJob.data });
         }
 
-        [HttpPost]
+        [HttpPut]
         public async Task<IActionResult> UpdateJob(int userId, int jobId, Job updatedJob)
         {
             // Get recruiter profile by user ID
@@ -118,7 +136,6 @@ namespace Nuleep.API.Controllers
             });
         }
 
-
         [HttpGet("{id}")]
         public async Task<IActionResult> GetJob(int id)
         {
@@ -153,11 +170,7 @@ namespace Nuleep.API.Controllers
             });
         }
 
-        // @desc      Delete a job
-        // @route     DELETE /api/jobs/:jobID
-        // @access    Private
         [HttpDelete("{jobId}")]
-        [Authorize]
         public async Task<IActionResult> DeleteJob(int jobId)
         {
             var userId = int.Parse(User.Claims.ToList()[0].Value).ToString();
@@ -183,7 +196,23 @@ namespace Nuleep.API.Controllers
             return Ok(new { success = true });
         }
 
-
+        [HttpPost("transfer")]
+        public async Task<IActionResult> TransferJobs([FromBody] JobsTransferRequest request)
+        {
+            try
+            {
+                await _jobService.TransferJobs(request);
+                return Ok(new { success = true, data = "Transfer successfully" });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { success = false, error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
 
     }
 }
