@@ -16,7 +16,7 @@ namespace Nuleep.Models
         public bool isDelete { get; set; } = false;
 
         // Shared
-        public List<Chatroom>? ChatRooms { get; set; }
+        public List<ChatRoom>? ChatRooms { get; set; }
         public List<MediaImage>? ProfileImg { get; set; }
 
         // ──────────────── JobSeeker-specific fields ────────────────

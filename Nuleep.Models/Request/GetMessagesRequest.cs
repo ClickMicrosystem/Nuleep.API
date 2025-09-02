@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace Nuleep.Models.Request
 {
-    public class EmailRequest
+    public class GetMessagesRequest
     {
-        public string Email { get; set; }
-        public int PId { get; set; }
+        public int RoomId { get; set; }
+        public int? Limit { get; set; }
+        public int? Page { get; set; }
     }
 }

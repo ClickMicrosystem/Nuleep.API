@@ -1,8 +1,16 @@
 ﻿using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using DocumentFormat.OpenXml.Spreadsheet;
+using MailChimp.Net;
+using MailChimp.Net.Interfaces;
+using MailChimp.Net.Models;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Nuleep.Business.Interface;
+using Nuleep.Data;
 using Nuleep.Data.Interface;
 using Nuleep.Data.Repository;
 using Nuleep.Models;
@@ -16,12 +24,23 @@ namespace Nuleep.Business.Services
     {
         
         private readonly IUserRepository _userRepo;
+        private readonly IProfileRepository _profileRepository;
+        private readonly IOrganizationRepository _organizationRepository;
         private readonly IConfiguration _config;
+        private readonly string _listId;
+        private readonly IMailChimpManager _mailChimpManager;
 
-        public UserService(IUserRepository userRepo, IConfiguration config)
+        public UserService(IUserRepository userRepo, IConfiguration config, IProfileRepository profileRepository, IOrganizationRepository organizationRepository)
         {
             _userRepo = userRepo;
             _config = config;
+            _profileRepository = profileRepository;
+            _organizationRepository = organizationRepository;
+            var apiKey = config["MailChimp:ApiKey"];
+            var serverPrefix = config["MailChimp:ServerPrefix"];
+            _listId = config["MailChimp:ListId"];
+
+            _mailChimpManager = new MailChimpManager(apiKey);
         }
 
         public async Task<User> Authenticate(string username, string password)
@@ -144,6 +163,76 @@ namespace Nuleep.Business.Services
             return await _userRepo.CreateUser(user);
         }
 
+        public async Task<User> ResetPasswordForOwnership(string resetToken, ResetOwnershipRequest dto)
+        {
+            using var sha = SHA256.Create();
+            var tokenHash = BitConverter.ToString(
+                sha.ComputeHash(Encoding.UTF8.GetBytes(resetToken))
+            ).Replace("-", "").ToLower();
 
+            var user = await _userRepo.GetUserByResetToken(tokenHash);
+            if (user == null) throw new Exception("Invalid Token");
+
+            var decodedData = Encoding.ASCII.GetString(Convert.FromBase64String(dto.Data));
+            var dsc = JsonSerializer.Deserialize<Dictionary<string, string>>(decodedData);
+
+            user.Email = dsc["newEmail"];
+            user.FirstName = dsc["firstName"];
+            user.LastName = dsc["lastName"];
+
+            var profile = await _profileRepository.GetExistingProfileByUserAsync(user.Id.ToString());
+            profile.Email = dsc["newEmail"];
+            profile.FirstName = dsc["firstName"];
+            profile.LastName = dsc["lastName"];
+
+            await _profileRepository.UpdateProfile(profile);
+
+            var orgId = int.Parse(Encoding.ASCII.GetString(Convert.FromBase64String(dto.OrgId)));
+            Organization org = new Organization()
+            {
+                Email = user.Email,
+                SendOwnership = true,
+                Verified = true,
+                Id = orgId,
+            };
+
+            await _userRepo.UpdateOrganization(org);
+
+            // set new password
+            user.Password = dto.Password;
+            user.ResetPasswordToken = null;
+            user.ResetPasswordExpire = null;
+            user.IsProfile = true;
+            user.ValidateEmail = true;
+
+            await _userRepo.UpdateUser(user);
+
+            return user;
+        }
+
+        public async Task<object> AddMailChimpMember(string email, string firstName, string lastName)
+        {
+            try
+            {
+                var member = new MailChimp.Net.Models.Member
+                {
+                    EmailAddress = email,
+                    StatusIfNew = Status.Subscribed,
+                    MergeFields = new Dictionary<string, object>
+                    {
+                        { "FNAME", firstName },
+                        { "LNAME", lastName }
+                    }
+                };
+
+                await _mailChimpManager.Members.AddOrUpdateAsync(_listId, member);
+
+                return new { StatusCode = 200, Success = "Subscribed successfully." };
+            }
+            catch (Exception ex)
+            {
+                return new { StatusCode = 500, Message = $"Unable to subscribe: {ex.Message}" };
+            }
+        }
     }
 }

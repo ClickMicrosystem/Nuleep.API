@@ -19,6 +19,7 @@ using Nuleep.Business.Services;
 using Nuleep.Data.Interface;
 using Nuleep.Data.Repository;
 using Nuleep.Models;
+using Nuleep.Models.Request;
 using UglyToad.PdfPig;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -40,9 +41,7 @@ namespace Nuleep.API.Controllers
             _profileRepository = profileRepository;
         }        
 
-        // @desc      Get your own profile. This will check your token for the profile id
-        // @route     GET /api/profiles
-        // @access    Private
+        
         [HttpGet]
         public async Task<IActionResult> GetMyProfile()
         {
@@ -73,9 +72,7 @@ namespace Nuleep.API.Controllers
         }
 
 
-        // @desc      Create a new profile
-        // @route     POST /api/profiles
-        // @access    Private
+        
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> CreateProfile([FromBody] CreateOrUpdateProfileRequest profileRequest)
@@ -385,6 +382,13 @@ namespace Nuleep.API.Controllers
                 success = true,
                 result
             });
+        }
+
+        [HttpPost("contactJoinChat")]
+        public async Task<IActionResult> JoinChatProfile([FromBody] JoinChatProfileRequest request)
+        {
+            var roomId = await _profileService.JoinChatProfile(request);
+            return Ok(new { success = true, data = new { roomId } });
         }
 
         public class MediaPayloadWithPId

@@ -283,7 +283,7 @@ namespace Nuleep.API.Controllers
         public async Task<IActionResult> VerifyEmailSend([FromBody] EmailRequest request)
         {
             // Encode pId to Base64
-            var pIdBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(request.PId));
+            var pIdBase64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(request.PId.ToString()));
             string _frontendUrl = _config["FrontendUrl"];
 
             // Build reset URL
@@ -380,6 +380,32 @@ namespace Nuleep.API.Controllers
                 signingCredentials: creds);
 
             return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
+
+        [HttpPost("resetpasswordOrg/{resetToken}")]
+        public async Task<IActionResult> ResetPasswordForOwnership(string resetToken, [FromBody] ResetOwnershipRequest request)
+        {
+            try
+            {
+                var user = await _userService.ResetPasswordForOwnership(resetToken, request);
+                return Ok(new { token = GenerateToken(user) });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
+        }
+
+        [HttpPost("mailchimp/addmember")]
+        public async Task<IActionResult> AddMailChimpMember([FromBody] MailChimpMemberRequest request)
+        {
+            var response = await _userService.AddMailChimpMember(request.Email, request.FirstName, request.LastName);
+
+            if ((int)response.GetType().GetProperty("StatusCode")!.GetValue(response)! == 200)
+                return Ok(response);
+
+            return StatusCode(500, response);
         }
 
     }

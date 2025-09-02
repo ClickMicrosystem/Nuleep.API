@@ -45,6 +45,18 @@ namespace Nuleep.Business.Services
 
             return response.IsSuccessStatusCode;
         }
+
+        public async Task<bool> SendEmail(string toEmail, string subject, string message)
+        {
+            var client = new SendGridClient(_config["SendGrid:ApiKey"]);
+            var from = new EmailAddress(_config["SendGrid:FromEmail"], "Nuleep");
+            var plainText = $"Claim ownership of your company at Nuleep";
+            var to = new EmailAddress(toEmail);
+            var msg = MailHelper.CreateSingleEmail(from, to, subject, plainText, message);
+            var response = await client.SendEmailAsync(msg);
+
+            return response.IsSuccessStatusCode;
+        }
     }
 
 

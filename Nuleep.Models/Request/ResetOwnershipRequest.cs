@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace Nuleep.Models.Request
 {
-    public class EmailRequest
+    public class ResetOwnershipRequest
     {
-        public string Email { get; set; }
-        public int PId { get; set; }
+        public string Data { get; set; }
+        public string OrgId { get; set; }
+        public string Password { get; set; }
     }
 }

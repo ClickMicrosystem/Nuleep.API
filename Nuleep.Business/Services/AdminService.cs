@@ -11,10 +11,12 @@ namespace Nuleep.Business.Services
     {
         
         private readonly IAdminRepository _adminRepository;
+        private readonly IUserRepository _userRepository;
 
-        public AdminService(IAdminRepository adminRepository)
+        public AdminService(IAdminRepository adminRepository, IUserRepository userRepository)
         {
             _adminRepository = adminRepository;
+            _userRepository = userRepository;
         }
 
         public async Task<(IEnumerable<JobWithRecruiter>, int)> GetJobsByOrg(int orgId, int limit, int page)

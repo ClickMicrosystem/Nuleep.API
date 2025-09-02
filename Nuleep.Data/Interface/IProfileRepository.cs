@@ -22,6 +22,10 @@ namespace Nuleep.Data.Interface
         Task<dynamic> UpdateHeaderImage(int profileId, MediaImage mediaImage);
         Task<Recruiter> GetRecruiterProfileByUserId(string userId);
         Task<Recruiter?> GetAdminRecruiterProfileByOrgId(int orgId);
+        Task UpdateProfile(Profile profile);
+        Task<ChatRoom> GetChatRoomByName(string name);
+        Task<int> CreateChatRoom(ChatRoom chatRoom);
+        Task AddUserToChatRoom(int chatRoomId, int userId);
 
     }
 }

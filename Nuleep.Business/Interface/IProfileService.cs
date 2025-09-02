@@ -1,4 +1,5 @@
 ﻿using Nuleep.Models;
+using Nuleep.Models.Request;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,6 +23,7 @@ namespace Nuleep.Business.Interface
         Task<dynamic> DeleteProfile(int UserId);
         Task<dynamic> UpdateProfileImage(int profileId, MediaImage mediaImage);
         Task<dynamic> UpdateHeaderImage(int profileId, MediaImage mediaImage);
+        Task<int> JoinChatProfile(JoinChatProfileRequest request);
 
 
 

@@ -9,6 +9,7 @@ using Azure.Core;
 using DocumentFormat.OpenXml.Spreadsheet;
 using System.Transactions;
 using Nuleep.Models.Response;
+using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace Nuleep.Data.Repository
 {
@@ -119,7 +120,7 @@ namespace Nuleep.Data.Repository
         
         public async Task<Profile> GetExistingProfileByUserAsync(string userId)
         {
-            var sql = "SELECT * FROM Profile WHERE UserId = @UserRefId";
+            var sql = "SELECT * FROM Profile WHERE UserRef = @UserRefId";
             return await _db.QueryFirstOrDefaultAsync<Profile>(sql, new { UserRefId = userId });
         }
 
@@ -1197,6 +1198,43 @@ namespace Nuleep.Data.Repository
             var sql = "SELECT ProfileId FROM Recruiters WHERE OrganizationId = @OrgId and OrganizationRole = 'admin'";
             int profileId = await _db.QueryFirstOrDefaultAsync<int>(sql, new { OrgId = orgId });
             return await GetRecruiterByProfileId(profileId);
+        }
+
+        public async Task UpdateProfile(Profile profile)
+        {
+            string sql = @"UPDATE Profile SET 
+                           Email = @Email, FirstName = @FirstName, LastName = @LastName 
+                           WHERE UserRef = @UserRef";
+            await _db.ExecuteAsync(sql, new
+            {
+                Email = profile.Email,
+                FirstName = profile.FirstName,
+                LastName = profile.LastName,
+                UserRef = profile.Id
+            });
+        }
+
+        public async Task<ChatRoom> GetChatRoomByName(string name)
+        {
+            return await _db.QueryFirstOrDefaultAsync<ChatRoom>(
+                "SELECT * FROM Chatrooms WHERE Name = @Name", new { Name = name });
+        }
+
+        public async Task<int> CreateChatRoom(ChatRoom chatRoom)
+        {
+            string sql = @"INSERT INTO Chatrooms (Name, CreatedAt) VALUES (@Name, GetDate());
+                           SELECT CAST(SCOPE_IDENTITY() as int)";
+            return await _db.ExecuteScalarAsync<int>(sql, new
+            {
+                Name = chatRoom.Name
+            });
+        }
+
+        public async Task AddUserToChatRoom(int chatRoomId, int userId)
+        {
+            string sql = @"INSERT INTO ChatroomUsers (ChatRoomId, UserId) 
+                           VALUES (@ChatRoomId, @UserId)";
+            await _db.ExecuteAsync(sql, new { ChatRoomId = chatRoomId, UserId = userId });
         }
 
     }

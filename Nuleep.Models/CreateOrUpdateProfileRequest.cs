@@ -17,7 +17,7 @@ namespace Nuleep.Models
         public bool? IsDelete { get; set; }
         public string? Phone { get; set; }
         public string? Role { get; set; }
-        public List<Chatroom>? ChatRooms { get; set; }
+        public List<ChatRoom>? ChatRooms { get; set; }
         public List<MediaImage>? ProfileImg { get; set; }
 
         public List<Education>? Education { get; set; }

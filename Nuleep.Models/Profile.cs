@@ -27,7 +27,7 @@ namespace Nuleep.Models
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public int? ChatRoomsId { get; set; }
         public int? ProfileImgId { get; set; }
-        public List<Chatroom> ChatRooms { get; set; } = new();
+        public List<ChatRoom> ChatRooms { get; set; } = new();
 
         [JsonPropertyName("profileImg")]
         public List<MediaImage> ProfileImage { get; set; } = new();

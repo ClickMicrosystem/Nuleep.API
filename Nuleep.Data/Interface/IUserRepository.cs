@@ -16,6 +16,8 @@ namespace Nuleep.Data.Interface
         Task<User?> UpdateEmailVerifiedStatus(int id, bool isEmailVerified);
         Task RemoveEmployee(RemoveEmployeeRequest request);
         Task UpdateGoogleId(int userId, string googleId);
+        Task UpdateOrganization(Organization org);
+        Task UpdateUser(User user);
 
     }
 }

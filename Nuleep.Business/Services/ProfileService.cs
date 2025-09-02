@@ -1,6 +1,7 @@
 ﻿using Nuleep.Business.Interface;
 using Nuleep.Data.Interface;
 using Nuleep.Models;
+using Nuleep.Models.Request;
 
 namespace Nuleep.Business.Services
 {
@@ -77,6 +78,27 @@ namespace Nuleep.Business.Services
         public async Task<dynamic> UpdateHeaderImage(int profileId, MediaImage mediaImage)
         {
             return await _profileRepository.UpdateHeaderImage(profileId, mediaImage);
+        }
+
+        public async Task<int> JoinChatProfile(JoinChatProfileRequest request)
+        {
+            string roomName = $"{request.JobSeek.Email}-join-{request.JobReq.Email}";
+
+            var existingRoom = await _profileRepository.GetChatRoomByName(roomName);
+            if (existingRoom != null)
+            {
+                return existingRoom.Id??0;
+            }
+
+            // Create new room
+            var room = new ChatRoom { Name = roomName };
+            int roomId = await _profileRepository.CreateChatRoom(room);
+
+            // Add users
+            await _profileRepository.AddUserToChatRoom(roomId, request.JobSeek.Id);
+            await _profileRepository.AddUserToChatRoom(roomId, request.JobReq.Id);
+
+            return roomId;
         }
     }
 }

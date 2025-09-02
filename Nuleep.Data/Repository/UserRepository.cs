@@ -33,10 +33,10 @@ namespace Nuleep.Data.Repository
 
             return user!;
         }
-        public async Task<User> GetUserByUsername(string username)
+        public async Task<User> GetUserByUsername(string email)
         {
             var sql = "SELECT * FROM Users WHERE Email = @Email";
-            return await _db.QueryFirstOrDefaultAsync<User>(sql, new { Email = username });
+            return await _db.QueryFirstOrDefaultAsync<User>(sql, new { Email = email });
         }
 
         public async Task<int> CreateUser(User user)
@@ -125,6 +125,7 @@ namespace Nuleep.Data.Repository
             string deleteProfiles = "UPDATE Profile SET IsDelete = 1 WHERE UserRef = @Id";
             await _db.ExecuteAsync(deleteProfiles, new { Id = request.UId });
         }
+        
         public async Task UpdateGoogleId(int userId, string googleId)
         {
             var sql = @"UPDATE Users 
@@ -133,6 +134,41 @@ namespace Nuleep.Data.Repository
             await _db.ExecuteAsync(sql, new { GoogleId = googleId,  UserId = userId });
         }
 
+        public async Task UpdateOrganization(Organization org)
+        {
+            string sql = @"UPDATE Organizations SET 
+                           Email = @Email, SendOwnership = @SendOwnership, Verified = @Verified 
+                           WHERE Id = @Id";
+            await _db.ExecuteAsync(sql, new
+            {
+                Email = org.Email,
+                SendOwnership = org.SendOwnership,
+                Verified = org.Verified,
+                Id = org.Id
+            });
+        }
+
+        public async Task UpdateUser(User user)
+        {
+            string sql = @"UPDATE Users SET 
+                           Email = @Email, FirstName = @FirstName, LastName = @LastName,
+                           Password = @Password, ResetPasswordToken = @ResetPasswordToken,
+                           ResetPasswordExpire = @ResetPasswordExpire,
+                           IsProfile = @IsProfile, ValidateEmail = @ValidateEmail
+                           WHERE Id = @Id";
+            await _db.ExecuteAsync(sql, new
+            {
+                Email = user.Email,
+                FirstName = user.FirstName,
+                LastName = user.LastName,
+                Password = user.Password,
+                ResetPasswordToken = user.ResetPasswordToken,
+                ResetPasswordExpire = user.ResetPasswordExpire,
+                IsProfile = user.IsProfile,
+                ValidateEmail = user.ValidateEmail,
+                Id = user.Id
+            });
+        }
 
     }
 }

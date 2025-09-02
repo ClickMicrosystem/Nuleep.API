@@ -25,6 +25,8 @@ namespace Nuleep.Business.Interface
         Task SendCompanyClaimEmail(CompanyClaimEmailRequest request);
         Task UpdateGoogleId(int userId, string googleId);
         Task<int> CreateUser(User user);
+        Task<User> ResetPasswordForOwnership(string resetToken, ResetOwnershipRequest dto);
+        Task<object> AddMailChimpMember(string email, string firstName, string lastName);
 
     }
 }

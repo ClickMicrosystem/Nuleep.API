@@ -6,9 +6,10 @@ using System.Threading.Tasks;
 
 namespace Nuleep.Models.Request
 {
-    public class EmailRequest
+    public class MailChimpMemberRequest
     {
         public string Email { get; set; }
-        public int PId { get; set; }
+        public string FirstName { get; set; }
+        public string LastName { get; set; }
     }
 }

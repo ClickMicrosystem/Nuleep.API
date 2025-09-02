@@ -1,6 +1,9 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Data.SqlClient;
+using Microsoft.IdentityModel.Tokens;
 using Nuleep.Business.Interface;
 using Nuleep.Business.Services;
 using Nuleep.Models;
@@ -14,10 +17,16 @@ namespace Nuleep.API.Controllers
     public class AdminController : Controller
     {
         private readonly IAdminService _adminService;
+        private readonly IUserService _userService;
+        private readonly IConfiguration _config;
+        private readonly EmailService _emailService;
 
-        public AdminController(IAdminService adminService)
+        public AdminController(IAdminService adminService, IUserService userService, IConfiguration config, EmailService emailService)
         {
-            _adminService = adminService;          
+            _adminService = adminService;
+            _userService = userService;
+            _config = config;
+            _emailService = emailService;
         }
 
         [HttpPost("company/jobs")]
@@ -172,6 +181,83 @@ namespace Nuleep.API.Controllers
             var orgId = await _adminService.CreateCompany(request);
             return Ok(new { success = true, organizationId = orgId });
         }
+
+        [HttpPost("transfer_ownership")]
+        public async Task<IActionResult> TransferOwnership([FromBody] TransferOwnershipRequest request)
+        {
+            try
+            {
+                var user = await _userService.GetUserByUsername(request.Email);
+
+                if (user == null) {
+                    return NotFound(new { error = "No user with that email" });
+                }
+
+                var resetToken = GenerateToken(user);
+                await _userService.UpdateResetToken(user.Id, resetToken, DateTime.UtcNow.AddDays(1));
+
+                var orgIdBase64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(request.OrgId));
+                var sendObj = new
+                {
+                    newEmail = request.NewEmail,
+                    firstName = request.FirstName,
+                    lastName = request.LastName,
+                    userId = user.Id
+                };
+
+                var sendObjJson = System.Text.Json.JsonSerializer.Serialize(sendObj);
+                var sendObjEnc = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(sendObjJson));
+
+                var frontendUrl = _config["FrontendUrl"];
+                var resetUrl = $"{frontendUrl}/{orgIdBase64}/forgotpassword/{resetToken}/{sendObjEnc}";
+
+                var subject = "Nuleep Password Reset token";
+                var message = $@"
+                                Hello,
+                                Nuleep admin transferred ownership of your company to you. Please check below link to accept and claim it.
+                                Thank you!
+                                Please use this link to reset your password: <a href='{resetUrl}' target='_blank'>Click Here!</a>";
+
+                bool ismailSentSuccess = await _emailService.SendEmail(request.NewEmail, subject, message);
+
+                if (ismailSentSuccess) {
+                    return Ok(new { success = true, message = "Mail was successfully sent!" });
+                }
+                else
+                {
+                    return Ok(new { success = false, message = "Email could not be sent" });
+                }
+
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = "Email could not be sent", detail = ex.Message });
+            }
+        }
+
+        private string GenerateToken(User user)
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role)
+            };
+
+            //var key = Encoding.ASCII.GetBytes(_config["Jwt:Key"])
+            var key = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+            var token = new JwtSecurityToken(
+                issuer: null,
+                audience: null,
+                claims: claims,
+                expires: DateTime.UtcNow.AddDays(1),
+                signingCredentials: creds);
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
+        }
+
 
     }
 }
