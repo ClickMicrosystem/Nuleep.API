@@ -20,6 +20,7 @@ using Nuleep.Data.Interface;
 using Nuleep.Data.Repository;
 using Nuleep.Models;
 using Nuleep.Models.Request;
+using Stripe;
 using UglyToad.PdfPig;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -33,12 +34,14 @@ namespace Nuleep.API.Controllers
         private readonly IProfileService _profileService;
         private readonly AzureFileService _azurefileService;
         private readonly IProfileRepository _profileRepository;
+        private readonly IUdemyService _udemyService;
 
-        public ProfilesController(IProfileService profileService, AzureFileService azurefileService, IProfileRepository profileRepository)
+        public ProfilesController(IProfileService profileService, AzureFileService azurefileService, IProfileRepository profileRepository, IUdemyService udemyService)
         {
             _profileService = profileService;
             _azurefileService = azurefileService;
             _profileRepository = profileRepository;
+            _udemyService = udemyService;
         }        
 
         
@@ -389,6 +392,48 @@ namespace Nuleep.API.Controllers
         {
             var roomId = await _profileService.JoinChatProfile(request);
             return Ok(new { success = true, data = new { roomId } });
+        }
+
+        [HttpPost("search/candidates")]
+        public async Task<IActionResult> SearchCandidates([FromBody] SearchCandidatesRequest request)
+        {
+            try
+            {
+                var (data, total) = await _profileService.SearchCandidates(request);
+                return Ok(new { success = true, data = new { data, total } });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, error = ex.Message });
+            }
+        }
+
+        [HttpGet("udemy/courses")]
+        public async Task<IActionResult> SearchCourses([FromQuery] int page = 1, [FromQuery] int size = 10, [FromQuery] string search = "")
+        {
+            try
+            {
+                var result = await _udemyService.SearchCourses(page, size, search);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = $"Unable to fetch Udemy courses: {ex.Message}" });
+            }
+        }
+
+        [HttpGet("udemy/courses/trending")]
+        public async Task<IActionResult> GetTrendingCourses([FromQuery] int page = 1, [FromQuery] int size = 10)
+        {
+            try
+            {
+                var result = await _udemyService.GetTrendingCourses(page, size);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = $"Unable to fetch Udemy courses: {ex.Message}" });
+            }
         }
 
         public class MediaPayloadWithPId

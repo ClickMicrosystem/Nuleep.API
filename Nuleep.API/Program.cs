@@ -82,6 +82,8 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddSingleton<AzureFileService>();
 builder.Services.AddSingleton<EmailService>();
 builder.Services.AddSingleton<GoogleOAuthService>();
+builder.Services.AddSingleton<UdemyService>();
+builder.Services.AddSingleton<Nuleep.Business.Services.BillingService>();
 
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();

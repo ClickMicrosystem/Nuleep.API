@@ -24,8 +24,7 @@ namespace Nuleep.Business.Interface
         Task<dynamic> UpdateProfileImage(int profileId, MediaImage mediaImage);
         Task<dynamic> UpdateHeaderImage(int profileId, MediaImage mediaImage);
         Task<int> JoinChatProfile(JoinChatProfileRequest request);
-
-
+        Task<(IEnumerable<CandidateSummary> Data, int Total)> SearchCandidates(SearchCandidatesRequest dto);
 
     }
 }

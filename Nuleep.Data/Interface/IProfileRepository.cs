@@ -26,6 +26,7 @@ namespace Nuleep.Data.Interface
         Task<ChatRoom> GetChatRoomByName(string name);
         Task<int> CreateChatRoom(ChatRoom chatRoom);
         Task AddUserToChatRoom(int chatRoomId, int userId);
+        Task<IEnumerable<CandidateSummary>> SearchCandidates(string name, int? limit, int? page);
 
     }
 }

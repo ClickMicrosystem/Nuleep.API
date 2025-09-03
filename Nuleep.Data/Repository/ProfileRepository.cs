@@ -1237,5 +1237,42 @@ namespace Nuleep.Data.Repository
             await _db.ExecuteAsync(sql, new { ChatRoomId = chatRoomId, UserId = userId });
         }
 
+        public async Task<IEnumerable<CandidateSummary>> SearchCandidates(string name, int? limit, int? page)
+        {
+            string search = $"%{name}%";
+
+            string sql = @"
+                SELECT js.Id,
+                       ISNULL(img.FullUrl, '') AS Image,
+                       (js.FirstName + ' ' + js.LastName) AS FullName,
+                       (j.City + ',' + j.ZipPostal) AS Location,
+                       ISNULL(exp.Company, '') AS Company
+                FROM Profile js inner join JobSeekers j on js.Id = j.ProfileId
+                LEFT JOIN (
+                    SELECT jsi.JobSeekerId, MIN(jsi.FullUrl) AS FullUrl
+                    FROM ProfileImages jsi
+                    GROUP BY jsi.JobSeekerId
+                ) img ON js.Id = img.ProfileId
+                OUTER APPLY (
+                    SELECT TOP 1 e.Company
+                    FROM Experience e
+                    WHERE e.ProfileId = js.Id
+                    ORDER BY e.ToDate DESC, e.ProfileId DESC
+                ) exp
+                WHERE js.FirstName LIKE @search
+                   OR js.LastName LIKE @search
+                   OR js.FullName LIKE @search
+                   OR js.City LIKE @search
+                   OR js.ZipPostal LIKE @search
+                   OR j.Skills LIKE @search
+                   OR EXISTS (SELECT 1 FROM Experience e WHERE e.ProfileId = js.Id AND e.Company LIKE @search)
+                OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY";
+
+            int take = limit ?? 10;
+            int skip = ((page ?? 1) - 1) * take;
+
+            return await _db.QueryAsync<CandidateSummary>(sql, new { search, offset = skip, limit = take });
+        }
+
     }
 }

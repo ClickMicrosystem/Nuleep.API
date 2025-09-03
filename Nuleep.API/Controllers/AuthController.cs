@@ -19,6 +19,7 @@ using System.Security.Cryptography;
 using System.Text;
 using static Nuleep.API.Controllers.AuthController;
 using Microsoft.AspNetCore.Cors;
+using Stripe;
 
 namespace Nuleep.API.Controllers
 {
@@ -31,14 +32,16 @@ namespace Nuleep.API.Controllers
         private readonly GoogleOAuthService _googleOAuthService;
         private readonly IConfiguration _config;
         private readonly IProfileService _profileService;
+        private readonly IBillingService _billingService;
 
-        public AuthController(IUserService userService, IConfiguration config, EmailService emailService, GoogleOAuthService googleOAuthService, IProfileService profileService)
+        public AuthController(IUserService userService, IConfiguration config, EmailService emailService, GoogleOAuthService googleOAuthService, IProfileService profileService, IBillingService billingService)
         {
             _userService = userService;
             _config = config;
             _emailService = emailService;
             _googleOAuthService = googleOAuthService;
             _profileService = profileService;
+            _billingService = billingService;
         }
 
         [HttpPost("singleSignin")]
@@ -406,6 +409,34 @@ namespace Nuleep.API.Controllers
                 return Ok(response);
 
             return StatusCode(500, response);
+        }
+
+        [HttpPost("stripe/billing-portal")]
+        public async Task<IActionResult> CreateBillingPortal([FromBody] BillingPortalRequest request)
+        {
+            try
+            {
+                var url = await _billingService.CreateBillingPortalSession(request.CustomerId);
+                return Ok(new { url });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = $"Unable to create billing portal session: {ex.Message}" });
+            }
+        }
+
+        [HttpPost("stripe/checkout")]
+        public async Task<IActionResult> CreateCheckoutSession([FromBody] CheckoutSessionRequest request)
+        {
+            try
+            {
+                var url = await _billingService.CreateCheckoutSession(request);
+                return Ok(new { url });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = $"Unable to create checkout session: {ex.Message}" });
+            }
         }
 
     }

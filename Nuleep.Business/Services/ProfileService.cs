@@ -1,4 +1,6 @@
-﻿using Nuleep.Business.Interface;
+﻿using Newtonsoft.Json;
+using System.Net.Http.Headers;
+using Nuleep.Business.Interface;
 using Nuleep.Data.Interface;
 using Nuleep.Models;
 using Nuleep.Models.Request;
@@ -99,6 +101,12 @@ namespace Nuleep.Business.Services
             await _profileRepository.AddUserToChatRoom(roomId, request.JobReq.Id);
 
             return roomId;
+        }
+
+        public async Task<(IEnumerable<CandidateSummary> Data, int Total)> SearchCandidates(SearchCandidatesRequest dto)
+        {
+            var results = await _profileRepository.SearchCandidates(dto.Name, dto.Limit, dto.Page);
+            return (results, results.Count());
         }
     }
 }
